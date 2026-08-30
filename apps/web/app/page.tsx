@@ -281,6 +281,23 @@ export default function Page() {
     }
   }
 
+  async function rematch() {
+    if (!selected) return;
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch(`${API}/operations/${selected.id}/rematch`, {
+        method: "POST",
+        headers: headers() as HeadersInit,
+      });
+      if (r.ok) await load();
+      else setError((await r.json()).detail || "Falha ao sincronizar mapeamentos");
+    } catch {
+      setError("API indisponível");
+    }
+    setLoading(false);
+  }
+
   async function addMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -415,6 +432,15 @@ export default function Page() {
     selected.status !== "completed" &&
     selected.issues.length === 0 &&
     selected.items.every((i) => i.matched);
+  const unmappedCount = selected ? selected.items.filter((i) => !i.matched).length : 0;
+  const blockedReason =
+    selected && selected.status !== "completed"
+      ? selected.issues.length > 0
+        ? "Corrija os problemas listados acima antes de executar"
+        : unmappedCount > 0
+        ? `${unmappedCount} item(ns) sem mapeamento — digite o código ERP ou sincronize os mapeamentos`
+        : ""
+      : "";
 
   return (
     <main className="app">
@@ -563,6 +589,17 @@ export default function Page() {
                       </div>
                       <div className="items">
                         <span>ITENS DO PEDIDO</span>
+                        {selected.items.length > 0 && unmappedCount > 0 && (
+                          <div className="mapHint">
+                            <span>
+                              {unmappedCount} item(ns) sem código ERP. Crie os mapeamentos na aba
+                              "Mapeamentos" e sincronize, ou digite o código diretamente em cada item.
+                            </span>
+                            <button onClick={rematch} disabled={loading}>
+                              ⟳ Sincronizar mapeamentos
+                            </button>
+                          </div>
+                        )}
                         {selected.items.length === 0 && (
                           <div className="empty">Nenhum item identificado no documento.</div>
                         )}
@@ -614,6 +651,7 @@ export default function Page() {
                           ? "Executando..."
                           : "Aprovar e executar no ERP ✓"}
                       </button>
+                      {blockedReason && <p className="blocked">{blockedReason}</p>}
                     </>
                   ) : (
                     <div className="empty">Selecione uma operação.</div>
