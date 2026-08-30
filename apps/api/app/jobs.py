@@ -5,10 +5,11 @@ import redis.asyncio as aioredis
 from app.audit import record_event
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Operation, OperationItem, OperationStatus
+from app.models import Operation, OperationItem, OperationStatus, Organization
 from app.extraction_llm import extract_text
 from app.validation import validate_extraction
 from app.matching import apply_matches
+from app.rules import needs_approval
 from app.webhooks import fire_webhooks
 
 
@@ -57,11 +58,16 @@ async def process_operation(operation_id: str, session_maker=None) -> None:
                 for item in result.items
             ]
             await apply_matches(session, op)
-            op.status = (
+            org = await session.get(Organization, op.organization_id)
+            base_status = (
                 OperationStatus.REVIEW
                 if (op.confidence < 85 or issues)
                 else OperationStatus.READY
             )
+            if base_status == OperationStatus.READY and needs_approval(op, org.settings if org else {}):
+                op.status = OperationStatus.PENDING_APPROVAL
+            else:
+                op.status = base_status
             await record_event(
                 session,
                 op.organization_id,

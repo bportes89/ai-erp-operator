@@ -71,7 +71,7 @@ type ROI = {
 };
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-type View = "operations" | "mappings" | "audit" | "roi" | "webhooks";
+type View = "operations" | "mappings" | "audit" | "roi" | "webhooks" | "rules";
 
 export default function Page() {
   const [token, setToken] = useState("");
@@ -82,6 +82,7 @@ export default function Page() {
   const [roi, setRoi] = useState<ROI | null>(null);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [threshold, setThreshold] = useState<string>("");
   const [selected, setSelected] = useState<Operation | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -171,12 +172,71 @@ export default function Page() {
     else setError("Falha ao remover webhook");
   }
 
+  async function loadSettings() {
+    try {
+      const r = await fetch(`${API}/organization/settings`, { headers: headers() as HeadersInit });
+      if (r.ok) {
+        const body = await r.json();
+        setThreshold(String(body.approval_threshold));
+      }
+    } catch {
+      setError("API indisponível");
+    }
+  }
+
+  async function saveSettings(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const r = await fetch(`${API}/organization/settings`, {
+      method: "PATCH",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify({ approval_threshold: Number(threshold) }),
+    });
+    if (r.ok) await loadSettings();
+    else setError((await r.json()).detail || "Falha ao salvar regra");
+  }
+
+  async function approve() {
+    if (!selected) return;
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch(`${API}/operations/${selected.id}/approve`, {
+        method: "POST",
+        headers: headers() as HeadersInit,
+      });
+      if (r.ok) await load();
+      else setError((await r.json()).detail || "Falha ao aprovar");
+    } catch {
+      setError("API indisponível");
+    }
+    setLoading(false);
+  }
+
+  async function reject() {
+    if (!selected) return;
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch(`${API}/operations/${selected.id}/reject`, {
+        method: "POST",
+        headers: headers() as HeadersInit,
+      });
+      if (r.ok) await load();
+      else setError((await r.json()).detail || "Falha ao recusar");
+    } catch {
+      setError("API indisponível");
+    }
+    setLoading(false);
+  }
+
   function navigate(next: View) {
     setView(next);
     if (next === "mappings") loadMappings();
     if (next === "audit") loadAudit();
     if (next === "roi") loadRoi();
     if (next === "webhooks") loadWebhooks();
+    if (next === "rules") loadSettings();
   }
 
   useEffect(() => {
@@ -435,7 +495,9 @@ export default function Page() {
   const unmappedCount = selected ? selected.items.filter((i) => !i.matched).length : 0;
   const blockedReason =
     selected && selected.status !== "completed"
-      ? selected.issues.length > 0
+      ? selected.status === "pending_approval"
+        ? "Pedido acima do limite — requer aprovação de um administrador"
+        : selected.issues.length > 0
         ? "Corrija os problemas listados acima antes de executar"
         : unmappedCount > 0
         ? `${unmappedCount} item(ns) sem mapeamento — digite o código ERP ou sincronize os mapeamentos`
@@ -467,6 +529,9 @@ export default function Page() {
           <button className={view === "webhooks" ? "active" : ""} onClick={() => navigate("webhooks")}>
             ⚙ Webhooks
           </button>
+          <button className={view === "rules" ? "active" : ""} onClick={() => navigate("rules")}>
+            ⚖ Regras
+          </button>
         </nav>
         <div className="user">
           <b>AD</b>
@@ -480,7 +545,7 @@ export default function Page() {
       </aside>
       <section className="main">
         <header>
-          <b>{view === "operations" ? "Central de operações" : view === "mappings" ? "Mapeamentos de produtos" : view === "audit" ? "Auditoria" : view === "roi" ? "ROI e desempenho" : "Integrações e webhooks"}</b>
+          <b>{view === "operations" ? "Central de operações" : view === "mappings" ? "Mapeamentos de produtos" : view === "audit" ? "Auditoria" : view === "roi" ? "ROI e desempenho" : view === "rules" ? "Regras da empresa" : "Integrações e webhooks"}</b>
           <span>
             <i /> API e ERP Demo operacionais
           </span>
@@ -640,6 +705,16 @@ export default function Page() {
                           Exportar XML
                         </button>
                       </div>
+                      {selected.status === "pending_approval" && (
+                        <div className="approvalRow">
+                          <button className="approve" onClick={approve} disabled={loading}>
+                            ✓ Aprovar pedido
+                          </button>
+                          <button className="reject" onClick={reject} disabled={loading}>
+                            ✕ Recusar
+                          </button>
+                        </div>
+                      )}
                       <button
                         className="execute"
                         disabled={loading || selected.status === "completed" || !canExecute}
@@ -839,6 +914,38 @@ export default function Page() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+          {view === "rules" && (
+            <div className="panel">
+              <div className="title">
+                <div>
+                  <span>REGRAS OPERACIONAIS</span>
+                  <h1>Limites e aprovações</h1>
+                  <p>
+                    Regras determinísticas autorizam ou bloqueiam antes da execução. Pedidos acima
+                    do limite exigem aprovação de um administrador.
+                  </p>
+                </div>
+              </div>
+              <form className="ruleForm" onSubmit={saveSettings}>
+                <label>
+                  Limite para exigir aprovação (R$)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={threshold}
+                    onChange={(e) => setThreshold(e.target.value)}
+                  />
+                </label>
+                <button disabled={loading}>Salvar regra</button>
+              </form>
+              <div className="ruleNote">
+                Como funciona: após a extração, se o valor do pedido for{" "}
+                <b>&ge; {money.format(Number(threshold) || 0)}</b>, a operação entra em
+                "aguardando aprovação" e só executa após um administrador aprovar.
+              </div>
             </div>
           )}
         </div>

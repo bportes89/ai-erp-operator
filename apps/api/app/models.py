@@ -25,6 +25,7 @@ class OperationStatus(str, enum.Enum):
     PROCESSING = "processing"
     REVIEW = "review"
     READY = "ready"
+    PENDING_APPROVAL = "pending_approval"
     EXECUTING = "executing"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -34,6 +35,7 @@ class Organization(Base):
     __tablename__ = "organizations"
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(160))
+    settings: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

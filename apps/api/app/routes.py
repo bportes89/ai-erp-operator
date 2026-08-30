@@ -17,6 +17,7 @@ from app.erp import ManualExecutionError, execute_with_fallback
 from app.export import operation_to_csv, operation_to_xml
 from app.jobs import dispatch, process_operation
 from app.matching import apply_matches, get_customer, learn_mapping
+from app.rules import approval_threshold
 from app.models import (
     AuditEvent,
     Customer,
@@ -43,6 +44,7 @@ from app.schemas import (
     MappingOut,
     OperationOut,
     OperationPatch,
+    OrgSettings,
     RegisterRequest,
     ROIOut,
     Token,
@@ -277,6 +279,99 @@ async def rematch(
     await session.commit()
     await session.refresh(op)
     return op
+
+
+@router.post("/operations/{operation_id}/approve", response_model=OperationOut)
+async def approve_operation(
+    operation_id: str,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    op = await session.scalar(
+        select(Operation).where(
+            Operation.id == operation_id, Operation.organization_id == user.organization_id
+        )
+    )
+    if not op:
+        raise HTTPException(404, "Operação não encontrada")
+    if op.status != OperationStatus.PENDING_APPROVAL:
+        raise HTTPException(409, "Operação não está aguardando aprovação")
+    op.status = OperationStatus.READY
+    await record_event(
+        session,
+        user.organization_id,
+        "operation.approved",
+        {"reference": op.reference, "total": float(op.total)},
+        op.id,
+        user.id,
+    )
+    await session.commit()
+    await session.refresh(op)
+    return op
+
+
+@router.post("/operations/{operation_id}/reject", response_model=OperationOut)
+async def reject_operation(
+    operation_id: str,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    op = await session.scalar(
+        select(Operation).where(
+            Operation.id == operation_id, Operation.organization_id == user.organization_id
+        )
+    )
+    if not op:
+        raise HTTPException(404, "Operação não encontrada")
+    if op.status != OperationStatus.PENDING_APPROVAL:
+        raise HTTPException(409, "Operação não está aguardando aprovação")
+    op.status = OperationStatus.REVIEW
+    op.issues = [*(op.issues or []), "Aprovação de valor recusada"]
+    await record_event(
+        session,
+        user.organization_id,
+        "operation.rejected",
+        {"reference": op.reference, "total": float(op.total)},
+        op.id,
+        user.id,
+    )
+    await session.commit()
+    await session.refresh(op)
+    return op
+
+
+@router.get("/organization/settings", response_model=OrgSettings)
+async def organization_settings(
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    org = await session.get(Organization, user.organization_id)
+    return OrgSettings(
+        approval_threshold=approval_threshold(org.settings if org else {})
+    )
+
+
+@router.patch("/organization/settings", response_model=OrgSettings)
+async def update_organization_settings(
+    body: OrgSettings,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    org = await session.get(Organization, user.organization_id)
+    if not org:
+        raise HTTPException(404, "Organização não encontrada")
+    settings = dict(org.settings or {})
+    settings["approval_threshold"] = body.approval_threshold
+    org.settings = settings
+    await record_event(
+        session,
+        user.organization_id,
+        "organization.settings_updated",
+        {"approval_threshold": body.approval_threshold},
+        actor_id=user.id,
+    )
+    await session.commit()
+    await session.refresh(org)
+    return OrgSettings(approval_threshold=approval_threshold(org.settings))
 
 
 @router.post("/operations/{operation_id}/execute", response_model=ExecuteResult)

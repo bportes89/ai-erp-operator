@@ -20,6 +20,10 @@ class RegisterRequest(BaseModel):
     organization: str | None = Field(default=None, max_length=160)
 
 
+class OrgSettings(BaseModel):
+    approval_threshold: float = Field(default=50000.0, gt=0)
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

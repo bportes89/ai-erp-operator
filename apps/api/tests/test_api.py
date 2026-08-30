@@ -265,6 +265,79 @@ async def test_register_creates_account_and_token(api_env, client):
 
 
 @pytest.mark.asyncio
+async def test_approval_flow(api_env, client):
+    maker = api_env
+    token = await _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with maker() as session:
+        org = await session.scalar(select(Organization))
+        org.settings = {"approval_threshold": 1000.0}
+        op = Operation(
+            organization_id=org.id,
+            reference="PC-APR",
+            filename="a.pdf",
+            total=5000.0,
+            confidence=90,
+            status=OperationStatus.PENDING_APPROVAL,
+        )
+        session.add(op)
+        await session.commit()
+        op_id = op.id
+
+    r = await client.post(f"/api/v1/operations/{op_id}/approve", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "ready"
+
+    r = await client.post(
+        f"/api/v1/operations/{op_id}/execute",
+        headers={**headers, "Idempotency-Key": "apr-1"},
+    )
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_reject_moves_to_review(api_env, client):
+    maker = api_env
+    token = await _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with maker() as session:
+        org = await session.scalar(select(Organization))
+        op = Operation(
+            organization_id=org.id,
+            reference="PC-REJ",
+            filename="r.pdf",
+            total=9000.0,
+            confidence=90,
+            status=OperationStatus.PENDING_APPROVAL,
+        )
+        session.add(op)
+        await session.commit()
+        op_id = op.id
+
+    r = await client.post(f"/api/v1/operations/{op_id}/reject", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["status"] == "review"
+    assert any("Aprovação" in i for i in r.json()["issues"])
+
+
+@pytest.mark.asyncio
+async def test_org_settings_patch(api_env, client):
+    token = await _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    r = await client.get("/api/v1/organization/settings", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["approval_threshold"] > 0
+
+    r = await client.patch(
+        "/api/v1/organization/settings", headers=headers, json={"approval_threshold": 2500.0}
+    )
+    assert r.status_code == 200
+    assert r.json()["approval_threshold"] == 2500.0
+
+
+@pytest.mark.asyncio
 async def test_patch_operation_and_customer(api_env, client):
     maker = api_env
     token = await _token(client)
