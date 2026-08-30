@@ -16,7 +16,7 @@ def upgrade():
     if dialect == "postgresql":
         op.add_column("organizations", sa.Column("settings", sa.JSON(), nullable=True))
         op.execute(
-            "ALTER TYPE operationstatus ADD VALUE IF NOT EXISTS 'pending_approval'"
+            "ALTER TYPE operationstatus ADD VALUE IF NOT EXISTS 'PENDING_APPROVAL'"
         )
         return
     with op.batch_alter_table("organizations") as batch:
