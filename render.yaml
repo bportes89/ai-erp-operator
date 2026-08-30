@@ -14,9 +14,9 @@ services:
       - key: SECRET_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: https://seu-app.vercel.app
+        value: https://ai-erp-operator.vercel.app
       - key: EXTRACTION_INLINE
-        value: "true"
+        value: "false"
       - key: STORAGE_ENABLED
         value: "false"
       - key: LLM_PROVIDER
