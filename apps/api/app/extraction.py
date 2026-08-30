@@ -136,11 +136,12 @@ def _extract_items(lines: list[str]) -> list[dict]:
     return dedup
 
 
-def extract_pdf(content: bytes) -> ExtractionResult:
+def extract_pdf(content: bytes, aliases: dict | None = None) -> ExtractionResult:
     reader = PdfReader(BytesIO(content))
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    fields = {key: _value(lines, aliases) for key, aliases in ALIASES.items()}
+    effective = {**ALIASES, **(aliases or {})}
+    fields = {key: _value(lines, values) for key, values in effective.items()}
     total = parse_number(fields["total"]) or 0.0
     fields["total"] = total
     cnpj = re.search(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", text)

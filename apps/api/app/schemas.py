@@ -24,6 +24,38 @@ class OrgSettings(BaseModel):
     approval_threshold: float = Field(default=50000.0, gt=0)
 
 
+class RecipeCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    description: str | None = Field(default=None, max_length=255)
+    operation_type: str = Field(default="sales_order.create", max_length=60)
+    field_aliases: dict = {}
+    required_fields: list[str] = []
+    approval_threshold: float | None = Field(default=None, gt=0)
+
+
+class RecipeUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    operation_type: str | None = None
+    field_aliases: dict | None = None
+    required_fields: list[str] | None = None
+    approval_threshold: float | None = None
+    active: bool | None = None
+
+
+class RecipeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    description: str | None
+    operation_type: str
+    field_aliases: dict
+    required_fields: list
+    approval_threshold: float | None
+    active: bool
+    created_at: datetime
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -41,6 +73,7 @@ class OperationOut(BaseModel):
     id: str
     reference: str
     filename: str
+    recipe_id: str | None = None
     supplier: str | None
     tax_id: str | None
     due_date: str | None

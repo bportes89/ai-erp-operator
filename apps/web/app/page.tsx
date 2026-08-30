@@ -14,6 +14,7 @@ type Item = {
 type Operation = {
   id: string;
   reference: string;
+  recipe_id: string | null;
   supplier: string | null;
   tax_id: string | null;
   due_date: string | null;
@@ -56,6 +57,17 @@ type Delivery = {
   attempts: number;
   created_at: string;
 };
+type Recipe = {
+  id: string;
+  name: string;
+  description: string | null;
+  operation_type: string;
+  field_aliases: Record<string, unknown>;
+  required_fields: string[];
+  approval_threshold: number | null;
+  active: boolean;
+  created_at: string;
+};
 type ROI = {
   total_operations: number;
   completed: number;
@@ -71,7 +83,7 @@ type ROI = {
 };
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-type View = "operations" | "mappings" | "audit" | "roi" | "webhooks" | "rules";
+type View = "operations" | "mappings" | "audit" | "roi" | "webhooks" | "rules" | "recipes";
 
 export default function Page() {
   const [token, setToken] = useState("");
@@ -83,6 +95,8 @@ export default function Page() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [threshold, setThreshold] = useState<string>("");
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [uploadRecipeId, setUploadRecipeId] = useState<string>("");
   const [selected, setSelected] = useState<Operation | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -230,6 +244,45 @@ export default function Page() {
     setLoading(false);
   }
 
+  async function loadRecipes() {
+    try {
+      const r = await fetch(`${API}/recipes`, { headers: headers() as HeadersInit });
+      if (r.ok) setRecipes(await r.json());
+    } catch {
+      setError("API indisponível");
+    }
+  }
+
+  async function addRecipe(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const data = new FormData(e.currentTarget);
+    const required = data.getAll("required").map(String);
+    const r = await fetch(`${API}/recipes`, {
+      method: "POST",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify({
+        name: data.get("name"),
+        operation_type: data.get("operation_type"),
+        required_fields: required,
+      }),
+    });
+    if (r.ok) {
+      (e.target as HTMLFormElement).reset();
+      await loadRecipes();
+    } else setError((await r.json()).detail || "Falha ao criar processo");
+  }
+
+  async function toggleRecipe(id: string, active: boolean) {
+    const r = await fetch(`${API}/recipes/${id}`, {
+      method: "PATCH",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify({ active }),
+    });
+    if (r.ok) await loadRecipes();
+    else setError("Falha ao atualizar processo");
+  }
+
   function navigate(next: View) {
     setView(next);
     if (next === "mappings") loadMappings();
@@ -237,6 +290,7 @@ export default function Page() {
     if (next === "roi") loadRoi();
     if (next === "webhooks") loadWebhooks();
     if (next === "rules") loadSettings();
+    if (next === "recipes") loadRecipes();
   }
 
   useEffect(() => {
@@ -295,6 +349,7 @@ export default function Page() {
     if (file.type !== "application/pdf") return setError("Envie um arquivo PDF");
     const form = new FormData();
     form.append("file", file);
+    if (uploadRecipeId) form.append("recipe_id", uploadRecipeId);
     setLoading(true);
     setError("");
     try {
@@ -532,6 +587,9 @@ export default function Page() {
           <button className={view === "rules" ? "active" : ""} onClick={() => navigate("rules")}>
             ⚖ Regras
           </button>
+          <button className={view === "recipes" ? "active" : ""} onClick={() => navigate("recipes")}>
+            📦 Processos
+          </button>
         </nav>
         <div className="user">
           <b>AD</b>
@@ -545,7 +603,7 @@ export default function Page() {
       </aside>
       <section className="main">
         <header>
-          <b>{view === "operations" ? "Central de operações" : view === "mappings" ? "Mapeamentos de produtos" : view === "audit" ? "Auditoria" : view === "roi" ? "ROI e desempenho" : view === "rules" ? "Regras da empresa" : "Integrações e webhooks"}</b>
+          <b>{view === "operations" ? "Central de operações" : view === "mappings" ? "Mapeamentos de produtos" : view === "audit" ? "Auditoria" : view === "roi" ? "ROI e desempenho" : view === "rules" ? "Regras da empresa" : view === "recipes" ? "Processos (recipes)" : "Integrações e webhooks"}</b>
           <span>
             <i /> API e ERP Demo operacionais
           </span>
@@ -565,15 +623,31 @@ export default function Page() {
                   <h1>Operações de venda</h1>
                   <p>Revise exceções e execute pedidos no sistema de destino.</p>
                 </div>
-                <label className="upload">
-                  ＋ Novo pedido
-                  <input
-                    hidden
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) => upload(e.target.files?.[0])}
-                  />
-                </label>
+                <div className="uploadRow">
+                  {recipes.length > 0 && (
+                    <select
+                      className="recipeSelect"
+                      value={uploadRecipeId}
+                      onChange={(e) => setUploadRecipeId(e.target.value)}
+                    >
+                      <option value="">Processo padrão</option>
+                      {recipes.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <label className="upload">
+                    ＋ Novo pedido
+                    <input
+                      hidden
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => upload(e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
               </div>
               <div className="metrics">
                 <Metric label="PEDIDOS" value={String(operations.length)} />
@@ -608,7 +682,7 @@ export default function Page() {
                     <>
                       <div className="detailHead">
                         <div>
-                          <span>OPERAÇÃO</span>
+                          <span>OPERAÇÃO · {recipes.find((r) => r.id === selected.recipe_id)?.name || "padrão"}</span>
                           <h2>{selected.reference}</h2>
                         </div>
                         <b>{selected.confidence}% confiança</b>
@@ -945,6 +1019,66 @@ export default function Page() {
                 Como funciona: após a extração, se o valor do pedido for{" "}
                 <b>&ge; {money.format(Number(threshold) || 0)}</b>, a operação entra em
                 "aguardando aprovação" e só executa após um administrador aprovar.
+              </div>
+            </div>
+          )}
+          {view === "recipes" && (
+            <div className="panel">
+              <div className="title">
+                <div>
+                  <span>BIBLIOTECA DE PROCESSOS</span>
+                  <h1>Process recipes</h1>
+                  <p>
+                    Configurações reutilizáveis de processo: como extrair, quais campos são
+                    obrigatórios e qual operação alimenta no ERP. O próximo cliente semelhante não
+                    começa do zero.
+                  </p>
+                </div>
+              </div>
+              <form className="mapForm" onSubmit={addRecipe}>
+                <input name="name" placeholder="Nome do processo (ex.: Pedido de Venda)" required />
+                <select name="operation_type" className="recipeSelect">
+                  <option value="sales_order.create">Pedido de venda</option>
+                  <option value="purchase.create">Compra</option>
+                  <option value="quote.create">Cotação/Proposta</option>
+                  <option value="invoice.payable">Nota fiscal (contas a pagar)</option>
+                </select>
+                <div className="reqFields">
+                  <span>Obrigatórios:</span>
+                  <label>
+                    <input type="checkbox" name="required" value="tax_id" /> CNPJ
+                  </label>
+                  <label>
+                    <input type="checkbox" name="required" value="due_date" /> Vencimento
+                  </label>
+                  <label>
+                    <input type="checkbox" name="required" value="cost_center" /> Centro de custo
+                  </label>
+                </div>
+                <button disabled={loading}>Criar processo</button>
+              </form>
+              <div className="table">
+                <div className="thead">
+                  <span>Processo</span>
+                  <span>Operação no ERP</span>
+                  <span>Campos obrigatórios</span>
+                  <span></span>
+                </div>
+                {recipes.length === 0 && <div className="empty">Nenhum processo criado.</div>}
+                {recipes.map((r) => (
+                  <div className="trow" key={r.id}>
+                    <span>
+                      <b>{r.name}</b>
+                      <br />
+                      <small className="muted">{r.active ? "ativo" : "inativo"}</small>
+                    </span>
+                    <span className="mono">{r.operation_type}</span>
+                    <span>{(r.required_fields || []).join(", ") || "—"}</span>
+                    <button className="linkBtn" onClick={() => toggleRecipe(r.id, !r.active)}>
+                      {r.active ? "Desativar" : "Ativar"}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}

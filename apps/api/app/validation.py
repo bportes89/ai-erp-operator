@@ -20,12 +20,16 @@ def is_valid_cnpj(value: str | None) -> bool | None:
     return True
 
 
-def validate_extraction(result: ExtractionResult) -> list[str]:
+def validate_extraction(result: ExtractionResult, required_fields: list[str] | None = None) -> list[str]:
     issues: list[str] = []
     if not result.fields.get("reference"):
         issues.append("Referência do pedido não identificada")
     if is_valid_cnpj(result.fields.get("tax_id")) is False:
         issues.append("CNPJ inválido")
+    for field in required_fields or []:
+        if not result.fields.get(field):
+            labels = {"supplier": "cliente", "due_date": "vencimento", "cost_center": "centro de custo"}
+            issues.append(f"Campo obrigatório ausente: {labels.get(field, field)}")
     items_total = round(sum(i["total"] for i in result.items), 2)
     header_total = result.fields.get("total") or 0.0
     if result.items and header_total and abs(items_total - header_total) > max(0.01, header_total * 0.02):

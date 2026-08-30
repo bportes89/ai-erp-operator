@@ -338,6 +338,48 @@ async def test_org_settings_patch(api_env, client):
 
 
 @pytest.mark.asyncio
+async def test_recipe_flow_with_required_fields(api_env, client):
+    maker = api_env
+    token = await _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r = await client.post(
+        "/api/v1/recipes",
+        headers=headers,
+        json={
+            "name": "Pedido com vencimento",
+            "operation_type": "sales_order.create",
+            "required_fields": ["due_date"],
+        },
+    )
+    assert r.status_code == 201, r.text
+    recipe_id = r.json()["id"]
+
+    r = await client.get("/api/v1/recipes", headers=headers)
+    assert r.status_code == 200
+    assert len(r.json()) == 1
+
+    r = await client.post(
+        "/api/v1/operations",
+        headers=headers,
+        data={"recipe_id": recipe_id},
+        files={"file": ("pedido.pdf", _minimal_pdf(), "application/pdf")},
+    )
+    assert r.status_code == 202, r.text
+    op = r.json()
+    assert op["recipe_id"] == recipe_id
+
+    from app.jobs import process_operation
+
+    await process_operation(op["id"], session_maker=maker)
+    async with maker() as session:
+        row = await session.get(Operation, op["id"])
+        await session.refresh(row)
+        assert any("vencimento" in issue for issue in (row.issues or []))
+        assert row.status == OperationStatus.REVIEW
+
+
+@pytest.mark.asyncio
 async def test_patch_operation_and_customer(api_env, client):
     maker = api_env
     token = await _token(client)

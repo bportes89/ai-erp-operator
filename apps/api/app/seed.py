@@ -1,7 +1,7 @@
 import asyncio
 from sqlalchemy import select
 from app.database import SessionLocal, engine
-from app.models import Base, Organization, User
+from app.models import Base, Organization, ProcessRecipe, User
 from app.security import hash_password
 
 
@@ -21,6 +21,15 @@ async def seed():
                 name="Administrador",
                 password_hash=hash_password("operator123"),
                 role="admin",
+            )
+        )
+        session.add(
+            ProcessRecipe(
+                organization_id=org.id,
+                name="Pedido de Venda",
+                description="Pedido B2B em PDF convertido em pedido de venda no ERP",
+                operation_type="sales_order.create",
+                required_fields=["tax_id"],
             )
         )
         await session.commit()

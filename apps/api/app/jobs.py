@@ -5,7 +5,13 @@ import redis.asyncio as aioredis
 from app.audit import record_event
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Operation, OperationItem, OperationStatus, Organization
+from app.models import (
+    Operation,
+    OperationItem,
+    OperationStatus,
+    Organization,
+    ProcessRecipe,
+)
 from app.extraction_llm import extract_text
 from app.validation import validate_extraction
 from app.matching import apply_matches
@@ -42,8 +48,13 @@ async def process_operation(operation_id: str, session_maker=None) -> None:
         await session.commit()
         try:
             content = op.raw_content or b""
-            result = extract_text(content)
-            issues = validate_extraction(result)
+            recipe = None
+            if op.recipe_id:
+                recipe = await session.get(ProcessRecipe, op.recipe_id)
+            aliases = recipe.field_aliases if recipe and recipe.field_aliases else None
+            result = extract_text(content, aliases)
+            required = recipe.required_fields if recipe else None
+            issues = validate_extraction(result, required)
             op.reference = result.fields.get("reference") or op.reference or f"PENDING-{operation_id[:8].upper()}"
             op.supplier = result.fields.get("supplier") or op.supplier
             op.tax_id = result.fields.get("tax_id") or op.tax_id
@@ -64,7 +75,11 @@ async def process_operation(operation_id: str, session_maker=None) -> None:
                 if (op.confidence < 85 or issues)
                 else OperationStatus.READY
             )
-            if base_status == OperationStatus.READY and needs_approval(op, org.settings if org else {}):
+            if base_status == OperationStatus.READY and needs_approval(
+                op,
+                org.settings if org else {},
+                float(recipe.approval_threshold) if recipe and recipe.approval_threshold else None,
+            ):
                 op.status = OperationStatus.PENDING_APPROVAL
             else:
                 op.status = base_status

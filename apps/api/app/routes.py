@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -25,6 +25,7 @@ from app.models import (
     Operation,
     OperationStatus,
     Organization,
+    ProcessRecipe,
     ProductMapping,
     User,
     Webhook,
@@ -45,6 +46,9 @@ from app.schemas import (
     OperationOut,
     OperationPatch,
     OrgSettings,
+    RecipeCreate,
+    RecipeOut,
+    RecipeUpdate,
     RegisterRequest,
     ROIOut,
     Token,
@@ -88,6 +92,15 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_se
         role="admin",
     )
     session.add(user)
+    session.add(
+        ProcessRecipe(
+            organization_id=org.id,
+            name="Pedido de Venda",
+            description="Pedido B2B em PDF convertido em pedido de venda no ERP",
+            operation_type="sales_order.create",
+            required_fields=["tax_id"],
+        )
+    )
     await record_event(
         session,
         org.id,
@@ -119,6 +132,7 @@ async def list_operations(
 @router.post("/operations", response_model=OperationOut, status_code=202, dependencies=[Depends(rate_limit(10, 60))])
 async def create_operation(
     file: UploadFile = File(...),
+    recipe_id: str | None = Form(default=None),
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -137,6 +151,16 @@ async def create_operation(
         confidence=0,
         status=OperationStatus.PROCESSING,
     )
+    if recipe_id:
+        recipe = await session.scalar(
+            select(ProcessRecipe).where(
+                ProcessRecipe.id == recipe_id,
+                ProcessRecipe.organization_id == user.organization_id,
+            )
+        )
+        if not recipe:
+            raise HTTPException(404, "Processo não encontrado")
+        op.recipe_id = recipe.id
     session.add(op)
     await session.flush()
     try:
@@ -372,6 +396,86 @@ async def update_organization_settings(
     await session.commit()
     await session.refresh(org)
     return OrgSettings(approval_threshold=approval_threshold(org.settings))
+
+
+@router.get("/recipes", response_model=list[RecipeOut])
+async def recipes(
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    return list(
+        await session.scalars(
+            select(ProcessRecipe)
+            .where(ProcessRecipe.organization_id == user.organization_id)
+            .order_by(ProcessRecipe.created_at)
+        )
+    )
+
+
+@router.post("/recipes", response_model=RecipeOut, status_code=201)
+async def create_recipe(
+    body: RecipeCreate,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    row = ProcessRecipe(organization_id=user.organization_id, **body.model_dump())
+    session.add(row)
+    await record_event(
+        session,
+        user.organization_id,
+        "recipe.created",
+        {"name": body.name, "operation_type": body.operation_type},
+        actor_id=user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+@router.patch("/recipes/{recipe_id}", response_model=RecipeOut)
+async def update_recipe(
+    recipe_id: str,
+    body: RecipeUpdate,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    row = await session.scalar(
+        select(ProcessRecipe).where(
+            ProcessRecipe.id == recipe_id,
+            ProcessRecipe.organization_id == user.organization_id,
+        )
+    )
+    if not row:
+        raise HTTPException(404, "Processo não encontrado")
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(row, field, value)
+    await record_event(
+        session,
+        user.organization_id,
+        "recipe.updated",
+        {"name": row.name},
+        actor_id=user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+@router.delete("/recipes/{recipe_id}", status_code=204)
+async def delete_recipe(
+    recipe_id: str,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    row = await session.scalar(
+        select(ProcessRecipe).where(
+            ProcessRecipe.id == recipe_id,
+            ProcessRecipe.organization_id == user.organization_id,
+        )
+    )
+    if not row:
+        raise HTTPException(404, "Processo não encontrado")
+    row.active = False
+    await session.commit()
 
 
 @router.post("/operations/{operation_id}/execute", response_model=ExecuteResult)

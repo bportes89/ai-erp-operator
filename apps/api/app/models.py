@@ -56,6 +56,22 @@ class Customer(Base):
     )
 
 
+class ProcessRecipe(Base):
+    """Configuração reutilizável de um processo: como extrair, validar e aprovar."""
+
+    __tablename__ = "process_recipes"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str | None] = mapped_column(String(255))
+    operation_type: Mapped[str] = mapped_column(String(60), default="sales_order.create")
+    field_aliases: Mapped[dict] = mapped_column(JSON, default=dict)
+    required_fields: Mapped[list] = mapped_column(JSON, default=list)
+    approval_threshold: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -74,6 +90,7 @@ class Operation(Base):
     reference: Mapped[str] = mapped_column(String(100), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     storage_key: Mapped[str | None] = mapped_column(String(500))
+    recipe_id: Mapped[str | None] = mapped_column(ForeignKey("process_recipes.id"), nullable=True)
     raw_content: Mapped[bytes | None] = mapped_column(LargeBinary)
     supplier: Mapped[str | None] = mapped_column(String(200))
     tax_id: Mapped[str | None] = mapped_column(String(30))

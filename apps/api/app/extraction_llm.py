@@ -160,9 +160,9 @@ def _call_llm_vision(pages: list[bytes]) -> dict | None:
         return None
 
 
-def extract_text(content: bytes) -> ExtractionResult:
+def extract_text(content: bytes, aliases: dict | None = None) -> ExtractionResult:
     """Pipeline de extração: texto (LLM) ou OCR por visão para PDFs escaneados."""
-    heuristic = extract_pdf(content)
+    heuristic = extract_pdf(content, aliases)
     s = get_settings()
     if s.llm_provider == "none" or not s.llm_api_key:
         return heuristic
