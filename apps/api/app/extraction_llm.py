@@ -181,5 +181,10 @@ def extract_text(content: bytes) -> ExtractionResult:
     if llm and _sanitize(llm):
         result = _merge(heuristic, _sanitize(llm))
         result.fields["extraction_method"] = "ocr_vision"
+        standard = ["reference", "supplier", "tax_id", "due_date", "cost_center", "total"]
+        fields_pct = round(sum(bool(result.fields.get(k)) for k in standard) / len(standard) * 100)
+        items_bonus = 15 if result.items else 0
+        items_total_bonus = 10 if result.items else 0
+        result.confidence = round(min(99, fields_pct * 0.75 + items_bonus + items_total_bonus))
         return result
     return heuristic
