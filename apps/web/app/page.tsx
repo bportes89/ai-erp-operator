@@ -358,8 +358,11 @@ export default function Page() {
         headers: headers() as HeadersInit,
         body: form,
       });
-      if (r.ok) await load();
-      else setError((await r.json()).detail || "Não foi possível processar o PDF");
+      if (r.ok) {
+        const created = await r.json();
+        await load();
+        setSelected(created);
+      } else setError((await r.json()).detail || "Não foi possível processar o PDF");
     } catch {
       setError("API indisponível");
     }
@@ -743,7 +746,7 @@ export default function Page() {
                           <div className="empty">Nenhum item identificado no documento.</div>
                         )}
                         {selected.items.map((item) => (
-                          <div key={item.id}>
+                          <div key={item.id} className="itemRow">
                             <p>
                               <b>{item.description}</b>
                               <small>

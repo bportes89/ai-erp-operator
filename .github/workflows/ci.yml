@@ -39,3 +39,29 @@ jobs:
         run: npx tsc --noEmit
       - name: Build
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install API dependencies
+        run: cd apps/api && pip install '.[dev]'
+      - name: Install web dependencies
+        run: cd apps/web && npm ci --no-audit --no-fund
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci --no-audit --no-fund
+      - name: Install browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E
+        working-directory: e2e
+        env:
+          PYTHON: python3
+        run: npx playwright test
