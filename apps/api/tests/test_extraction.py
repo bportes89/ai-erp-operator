@@ -1,4 +1,14 @@
 from app.extraction import ExtractionResult, _extract_items, parse_number
+from app.extraction_llm import _split_code_description
+
+
+def test_split_code_description():
+    code, desc = _split_code_description("CIM-1 Cimento CP-II 50kg")
+    assert code == "CIM-1"
+    assert desc == "Cimento CP-II 50kg"
+    code, desc = _split_code_description("Areia Fina")
+    assert code is None
+    assert desc == "Areia Fina"
 
 
 def test_parse_number_br_format():
