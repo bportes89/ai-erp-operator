@@ -12,7 +12,7 @@ async function login(page) {
 
 async function upload(page, file) {
   const chooser = page.waitForEvent("filechooser");
-  await page.getByText("＋ Novo pedido").click();
+  await page.getByText(/Novo pedido/).click();
   await (await chooser).setFiles(file);
 }
 
@@ -31,7 +31,7 @@ test("fluxo completo: login, upload, mapear, executar", async ({ page }) => {
   await expect(page.locator(".items em.ok")).toHaveCount(2, { timeout: 15000 });
   await expect(page.locator(".execute")).toBeEnabled({ timeout: 10000 });
   await page.locator(".execute").click();
-  await expect(page.getByText("Executado com sucesso ✓")).toBeVisible({ timeout: 20000 });
+  await expect(page.getByText("Executado com sucesso")).toBeVisible({ timeout: 20000 });
 
   await page.getByRole("button", { name: /Mapeamentos/ }).click();
   await expect(page.locator(".table .trow").first()).toBeVisible({ timeout: 15000 });

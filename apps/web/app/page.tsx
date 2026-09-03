@@ -573,25 +573,25 @@ export default function Page() {
         </div>
         <nav>
           <button className={view === "operations" ? "active" : ""} onClick={() => navigate("operations")}>
-            ⌁ Operações <i>{operations.length}</i>
+            <Icon name="operations" /> Operações <i>{operations.length}</i>
           </button>
           <button className={view === "mappings" ? "active" : ""} onClick={() => navigate("mappings")}>
-            ≡ Mapeamentos <i>{mappings.length}</i>
+            <Icon name="mappings" /> Mapeamentos <i>{mappings.length}</i>
           </button>
           <button className={view === "audit" ? "active" : ""} onClick={() => navigate("audit")}>
-            ✓ Auditoria <i>{audits.length}</i>
+            <Icon name="audit" /> Auditoria <i>{audits.length}</i>
           </button>
           <button className={view === "roi" ? "active" : ""} onClick={() => navigate("roi")}>
-            ↗ ROI
+            <Icon name="roi" /> ROI
           </button>
           <button className={view === "webhooks" ? "active" : ""} onClick={() => navigate("webhooks")}>
-            ⚙ Webhooks
+            <Icon name="webhooks" /> Webhooks
           </button>
           <button className={view === "rules" ? "active" : ""} onClick={() => navigate("rules")}>
-            ⚖ Regras
+            <Icon name="rules" /> Regras
           </button>
           <button className={view === "recipes" ? "active" : ""} onClick={() => navigate("recipes")}>
-            📦 Processos
+            <Icon name="recipes" /> Processos
           </button>
         </nav>
         <div className="user">
@@ -599,8 +599,8 @@ export default function Page() {
           <p>
             Administrador<span>Empresa Demonstração</span>
           </p>
-          <button onClick={logout} className="logout">
-            Sair
+          <button onClick={logout} className="logout" aria-label="Sair">
+            <Icon name="logout" />
           </button>
         </div>
       </aside>
@@ -642,7 +642,7 @@ export default function Page() {
                     </select>
                   )}
                   <label className="upload">
-                    ＋ Novo pedido
+                    <Icon name="plus" /> Novo pedido
                     <input
                       hidden
                       type="file"
@@ -698,7 +698,7 @@ export default function Page() {
                       {selected.issues.length > 0 && (
                         <div className="issues">
                           {selected.issues.map((issue) => (
-                            <span key={issue}>⚠ {issue}</span>
+                            <span key={issue}>{issue}</span>
                           ))}
                         </div>
                       )}
@@ -753,9 +753,9 @@ export default function Page() {
                                 {item.customer_code || "sem código"} · {item.quantity} ×{" "}
                                 {money.format(item.unit_price)}
                                 {item.matched ? (
-                                  <em className="ok"> ✓ mapeado</em>
+                                  <em className="ok">mapeado</em>
                                 ) : (
-                                  <em className="no"> sem mapeamento</em>
+                                  <em className="no">sem mapeamento</em>
                                 )}
                               </small>
                             </p>
@@ -785,10 +785,10 @@ export default function Page() {
                       {selected.status === "pending_approval" && (
                         <div className="approvalRow">
                           <button className="approve" onClick={approve} disabled={loading}>
-                            ✓ Aprovar pedido
+                            <Icon name="check" /> Aprovar pedido
                           </button>
                           <button className="reject" onClick={reject} disabled={loading}>
-                            ✕ Recusar
+                            <Icon name="x" /> Recusar
                           </button>
                         </div>
                       )}
@@ -798,10 +798,10 @@ export default function Page() {
                         onClick={execute}
                       >
                         {selected.status === "completed"
-                          ? "Executado com sucesso ✓"
+                          ? "Executado com sucesso"
                           : loading
                           ? "Executando..."
-                          : "Aprovar e executar no ERP ✓"}
+                          : "Aprovar e executar no ERP"}
                       </button>
                       {blockedReason && <p className="blocked">{blockedReason}</p>}
                     </>
@@ -1088,6 +1088,95 @@ export default function Page() {
         </div>
       </section>
     </main>
+  );
+}
+
+function Icon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactElement> = {
+    operations: (
+      <>
+        <line x1="9" y1="6" x2="21" y2="6" />
+        <line x1="9" y1="12" x2="21" y2="12" />
+        <line x1="9" y1="18" x2="21" y2="18" />
+        <circle cx="4.5" cy="6" r="1" />
+        <circle cx="4.5" cy="12" r="1" />
+        <circle cx="4.5" cy="18" r="1" />
+      </>
+    ),
+    mappings: (
+      <>
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </>
+    ),
+    audit: (
+      <>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
+    roi: (
+      <>
+        <path d="m22 7-8.5 8.5-5-5L2 17" />
+        <path d="M16 7h6v6" />
+      </>
+    ),
+    webhooks: (
+      <>
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </>
+    ),
+    rules: (
+      <>
+        <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+        <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+        <path d="M7 21h10" />
+        <path d="M12 3v18" />
+        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+      </>
+    ),
+    recipes: (
+      <>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </>
+    ),
+    plus: (
+      <>
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </>
+    ),
+    check: <path d="M20 6 9 17l-5-5" />,
+    x: (
+      <>
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </>
+    ),
+    logout: (
+      <>
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <path d="m16 17 5-5-5-5" />
+        <path d="M21 12H9" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {paths[name]}
+    </svg>
   );
 }
 
