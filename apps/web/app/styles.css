@@ -1395,3 +1395,22 @@ button:disabled {
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }
+.themeFab {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  transition: all 0.16s var(--ease);
+}
+.themeFab:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+  transform: translateY(-1px);
+}

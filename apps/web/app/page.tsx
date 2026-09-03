@@ -500,6 +500,14 @@ export default function Page() {
     return (
       <main className="login">
         <section>
+          <button
+            className="themeFab"
+            onClick={toggleTheme}
+            aria-label={theme === "light" ? "Modo escuro" : "Modo claro"}
+            title={theme === "light" ? "Modo escuro" : "Modo claro"}
+          >
+            <Icon name={theme === "light" ? "moon" : "sun"} />
+          </button>
           <div className="logo">AO</div>
           <span>AI ERP OPERATOR</span>
           <h1>
