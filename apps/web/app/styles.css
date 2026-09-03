@@ -1254,3 +1254,144 @@ button:disabled {
     align-items: stretch;
   }
 }
+/* ---------- Skeleton ---------- */
+.skeleton {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.sk {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(11, 18, 32, 0.06) 25%, rgba(11, 18, 32, 0.12) 50%, rgba(11, 18, 32, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.sk-line.w40 { width: 40%; }
+.sk-line.w45 { width: 45%; }
+.sk-line.w55 { width: 55%; }
+.sk-line.w60 { width: 60%; }
+.sk-line.w65 { width: 65%; }
+.sk-line.w70 { width: 70%; }
+.sk-line.w80 { width: 80%; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- ROI tooltip ---------- */
+.barCol {
+  position: relative;
+}
+.barTip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 7px;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+  z-index: 5;
+}
+.barCol:hover .barTip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- Dark mode ---------- */
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --surface: #111a2b;
+  --ink: #e7ecf4;
+  --body: #b7c2d2;
+  --muted: #8fa1b7;
+  --faint: #66748c;
+  --line: #223049;
+  --line-soft: #1a2639;
+  --brand: #26b3a5;
+  --brand-strong: #1d8f84;
+  --brand-grad: linear-gradient(135deg, #26b3a5 0%, #18948a 100%);
+  --brand-soft: #0f2a2a;
+  --brand-line: #2e7a72;
+  --sidebar: #0a1521;
+  --sidebar-2: #080f19;
+  --sidebar-muted: #8497aa;
+  --ok: #2fbf8a;
+  --ok-soft: #0f2a20;
+  --warn: #e8a23d;
+  --warn-soft: #2b2311;
+  --danger: #f27480;
+  --danger-soft: #2b1417;
+  --approval: #a992e8;
+  --approval-soft: #1c1630;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+}
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(1200px 500px at 100% -5%, rgba(38, 179, 165, 0.06) 0%, transparent 60%),
+    radial-gradient(900px 400px at -10% 0%, rgba(109, 80, 194, 0.05) 0%, transparent 55%);
+}
+[data-theme="dark"] .login {
+  background:
+    radial-gradient(900px 600px at 80% -10%, rgba(38, 179, 165, 0.14) 0%, transparent 60%),
+    radial-gradient(700px 500px at -10% 110%, rgba(109, 80, 194, 0.14) 0%, transparent 55%),
+    linear-gradient(180deg, #0b1220 0%, #0e1626 100%);
+}
+[data-theme="dark"] .login::before {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+}
+[data-theme="dark"] .login section {
+  background: rgba(17, 26, 43, 0.86);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .authTabs {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .authTabs button.active {
+  background: var(--surface);
+}
+[data-theme="dark"] .main > header {
+  background: rgba(11, 18, 32, 0.78);
+  border-color: var(--line);
+}
+[data-theme="dark"] .list > button:hover {
+  background: #14203a;
+}
+[data-theme="dark"] .list > button.selected {
+  background: linear-gradient(90deg, var(--brand-soft), rgba(15, 42, 42, 0.5));
+}
+[data-theme="dark"] .thead {
+  background: #0f1828;
+}
+[data-theme="dark"] .trow:hover,
+[data-theme="dark"] .trow:nth-child(even):hover {
+  background: #14203a;
+}
+[data-theme="dark"] .trow:nth-child(even) {
+  background: #0e1626;
+}
+[data-theme="dark"] .itemRow:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+[data-theme="dark"] .list em.review {
+  color: #f5a06f;
+  background: #2b1a11;
+}
+[data-theme="dark"] .sk {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}

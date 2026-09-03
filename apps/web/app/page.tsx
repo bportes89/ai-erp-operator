@@ -88,6 +88,12 @@ type View = "operations" | "mappings" | "audit" | "roi" | "webhooks" | "rules" |
 export default function Page() {
   const [token, setToken] = useState("");
   const [view, setView] = useState<View>("operations");
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    typeof document !== "undefined" &&
+    document.documentElement.getAttribute("data-theme") === "dark"
+      ? "dark"
+      : "light"
+  );
   const [operations, setOperations] = useState<Operation[]>([]);
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [audits, setAudits] = useState<AuditEvent[]>([]);
@@ -479,6 +485,17 @@ export default function Page() {
     setView("operations");
   }
 
+  function toggleTheme() {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("ao_theme", next);
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (!token)
     return (
       <main className="login">
@@ -599,7 +616,15 @@ export default function Page() {
           <p>
             Administrador<span>Empresa Demonstração</span>
           </p>
-          <button onClick={logout} className="logout" aria-label="Sair">
+          <button
+            onClick={toggleTheme}
+            className="logout"
+            aria-label={theme === "light" ? "Modo escuro" : "Modo claro"}
+            title={theme === "light" ? "Modo escuro" : "Modo claro"}
+          >
+            <Icon name={theme === "light" ? "moon" : "sun"} />
+          </button>
+          <button onClick={logout} className="logout" aria-label="Sair" title="Sair">
             <Icon name="logout" />
           </button>
         </div>
@@ -702,6 +727,17 @@ export default function Page() {
                           ))}
                         </div>
                       )}
+                      {selected.status === "processing" ? (
+                        <div className="skeleton" aria-hidden="true">
+                          <span className="sk sk-line w40" />
+                          <span className="sk sk-line w70" />
+                          <span className="sk sk-line w55" />
+                          <span className="sk sk-line w80" />
+                          <span className="sk sk-line w65" />
+                          <span className="sk sk-line w45" />
+                        </div>
+                      ) : (
+                      <>
                       <div className="fields">
                         <Field
                           label="Cliente"
@@ -804,6 +840,8 @@ export default function Page() {
                           : "Aprovar e executar no ERP"}
                       </button>
                       {blockedReason && <p className="blocked">{blockedReason}</p>}
+                      </>
+                      )}
                     </>
                   ) : (
                     <div className="empty">Selecione uma operação.</div>
@@ -908,6 +946,9 @@ export default function Page() {
                   <div className="bars">
                     {roi.daily.map((d) => (
                       <div className="barCol" key={d.date} title={`${d.date}: ${d.operations} operações · ${money.format(d.value)}`}>
+                        <span className="barTip">
+                          {d.date} · {d.operations} ops · {money.format(d.value)}
+                        </span>
                         <span className="barVal">{d.operations}</span>
                         <div className="bar">
                           <div
@@ -1160,6 +1201,20 @@ function Icon({ name }: { name: string }) {
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
         <path d="m16 17 5-5-5-5" />
         <path d="M21 12H9" />
+      </>
+    ),
+    moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
+    sun: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
       </>
     ),
   };
