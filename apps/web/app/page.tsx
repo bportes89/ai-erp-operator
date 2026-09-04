@@ -602,6 +602,29 @@ export default function Page() {
   const processedValue = operations
     .filter((o) => o.status === "completed")
     .reduce((sum, o) => sum + o.total, 0);
+  const viewIcon: Record<View, string> = {
+    operations: "operations",
+    mappings: "mappings",
+    audit: "audit",
+    roi: "roi",
+    webhooks: "webhooks",
+    rules: "rules",
+    recipes: "recipes",
+  };
+  const headSubtitle =
+    view === "operations"
+      ? `${operations.length} pedidos · ${pending} em andamento · ${completed} executados`
+      : view === "mappings"
+      ? `${mappings.length} produtos mapeados`
+      : view === "audit"
+      ? `${audits.length} eventos registrados`
+      : view === "roi"
+      ? "Impacto operacional em tempo real"
+      : view === "webhooks"
+      ? `${webhooks.length} webhooks configurados`
+      : view === "rules"
+      ? "Regras determinísticas da empresa"
+      : `${recipes.length} processos configurados`;
   const canExecute =
     selected &&
     selected.status !== "completed" &&
@@ -671,10 +694,35 @@ export default function Page() {
       </aside>
       <section className="main">
         <header>
-          <b>{view === "operations" ? "Central de operações" : view === "mappings" ? "Mapeamentos de produtos" : view === "audit" ? "Auditoria" : view === "roi" ? "ROI e desempenho" : view === "rules" ? "Regras da empresa" : view === "recipes" ? "Processos (recipes)" : "Integrações e webhooks"}</b>
-          <span>
-            <i /> API e ERP Demo operacionais
-          </span>
+          <div className="headLeft">
+            <span className="headIcon">
+              <Icon name={viewIcon[view]} />
+            </span>
+            <div>
+              <b>
+                {view === "operations"
+                  ? "Central de operações"
+                  : view === "mappings"
+                  ? "Mapeamentos de produtos"
+                  : view === "audit"
+                  ? "Auditoria"
+                  : view === "roi"
+                  ? "ROI e desempenho"
+                  : view === "rules"
+                  ? "Regras da empresa"
+                  : view === "recipes"
+                  ? "Processos (recipes)"
+                  : "Integrações e webhooks"}
+              </b>
+              <small>{headSubtitle}</small>
+            </div>
+          </div>
+          <div className="headRight">
+            <span className="statusPill">
+              <i /> Sistemas operacionais
+            </span>
+            <span className="envChip">Demo</span>
+          </div>
         </header>
         <div className="content">
           {error && (
