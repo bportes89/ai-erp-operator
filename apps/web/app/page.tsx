@@ -503,9 +503,9 @@ export default function Page() {
         <section className="loginShell">
           <aside className="loginAside">
             <div className="brand">
-              <b>AO</b>
+              <Logo size={36} />
               <p>
-                AI ERP Operator<span>Plataforma de operações</span>
+                AIOperator<span>Plataforma de operações</span>
               </p>
             </div>
             <div className="loginCopy">
@@ -539,8 +539,8 @@ export default function Page() {
             >
               <Icon name={theme === "light" ? "moon" : "sun"} />
             </button>
-            <div className="logo">AO</div>
-            <span>AI ERP OPERATOR</span>
+            <Logo size={42} />
+            <span>AIOperator</span>
             <h1>
               Operações no ERP,
               <br />
@@ -623,9 +623,9 @@ export default function Page() {
     <main className="app">
       <aside>
         <div className="brand">
-          <b>AO</b>
+          <Logo size={36} />
           <p>
-            AI Operator<span>Pedidos B2B → ERP</span>
+            AIOperator<span>Pedidos B2B → ERP</span>
           </p>
         </div>
         <nav>
@@ -687,7 +687,7 @@ export default function Page() {
             <>
               <div className="hero">
                 <div>
-                  <span className="heroEyebrow">AI ERP Operator · Pedidos B2B</span>
+                  <span className="heroEyebrow">AIOperator · Pedidos B2B</span>
                   <h1>Operações de venda</h1>
                   <p className="heroSub">
                     Revise exceções e execute pedidos no ERP com rastreabilidade total.
@@ -1176,6 +1176,31 @@ export default function Page() {
         </div>
       </section>
     </main>
+  );
+}
+
+function Logo({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id="logograd" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#2dd4bf" />
+          <stop offset="0.55" stopColor="#14b8a6" />
+          <stop offset="1" stopColor="#3b82f6" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="9" fill="url(#logograd)" />
+      <path
+        d="M9.5 24 16 8l6.5 16"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M12.8 18.4h6.4" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="23" cy="7" r="2.6" fill="#fff" />
+    </svg>
   );
 }
 

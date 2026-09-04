@@ -1,7 +1,7 @@
 import "./styles.css";
 
 export const metadata = {
-  title: "AI ERP Operator",
+  title: "AIOperator",
   description: "Pedidos B2B executados com segurança no ERP",
 };
 
