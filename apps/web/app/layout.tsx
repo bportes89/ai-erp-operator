@@ -7,11 +7,11 @@ export const metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-theme="dark">
       <body>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('ao_theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('ao_theme');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark')}catch(e){document.documentElement.setAttribute('data-theme','dark')}`,
           }}
         />
         {children}

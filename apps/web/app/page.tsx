@@ -653,11 +653,13 @@ export default function Page() {
           )}
           {view === "operations" && (
             <>
-              <div className="title">
+              <div className="hero">
                 <div>
-                  <span>PEDIDOS B2B</span>
+                  <span className="heroEyebrow">AI ERP Operator · Pedidos B2B</span>
                   <h1>Operações de venda</h1>
-                  <p>Revise exceções e execute pedidos no sistema de destino.</p>
+                  <p className="heroSub">
+                    Revise exceções e execute pedidos no ERP com rastreabilidade total.
+                  </p>
                 </div>
                 <div className="uploadRow">
                   {recipes.length > 0 && (
