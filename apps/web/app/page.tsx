@@ -714,6 +714,10 @@ export default function Page() {
                       </p>
                       <strong>{money.format(op.total)}</strong>
                       <em className={op.status}>{op.status}</em>
+                      <span className="rowMeta">
+                        <span className="meta">{op.confidence}% confiança</span>
+                        <span className="meta">{op.items.length} itens</span>
+                      </span>
                     </button>
                   ))}
                 </section>
@@ -1256,31 +1260,41 @@ function TrendChart({ daily }: { daily: Daily[] }) {
       </div>
     );
   const W = 720;
-  const H = 190;
+  const H = 200;
   const PAD = 14;
-  const BOTTOM = 34;
-  const max = Math.max(1, ...daily.map((d) => d.operations));
+  const BOTTOM = 30;
+  const maxOps = Math.max(1, ...daily.map((d) => d.operations));
+  const maxVal = Math.max(1, ...daily.map((d) => d.value));
   const step = Math.max(1, daily.length - 1);
-  const pts = daily.map((d, i) => ({
-    x: PAD + (i * (W - PAD * 2)) / step,
-    y: H - BOTTOM - (d.operations / max) * (H - PAD - BOTTOM),
-    ...d,
-  }));
+  const x = (i: number) => PAD + (i * (W - PAD * 2)) / step;
+  const opsY = (v: number) => H - BOTTOM - (v / maxOps) * (H - PAD - BOTTOM);
+  const valY = (v: number) => H - BOTTOM - (v / maxVal) * (H - PAD - BOTTOM);
+  const opsPts = daily.map((d, i) => ({ x: x(i), y: opsY(d.operations), ...d }));
+  const valPts = daily.map((d, i) => ({ x: x(i), y: valY(d.value), ...d }));
   const area =
-    `M ${pts[0].x} ${H - BOTTOM} ` +
-    pts.map((p) => `L ${p.x} ${p.y}`).join(" ") +
-    ` L ${pts[pts.length - 1].x} ${H - BOTTOM} Z`;
-  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
-  const gridY = [0, 0.33, 0.66, 1].map(
-    (f) => H - BOTTOM - f * (H - PAD - BOTTOM)
-  );
+    `M ${opsPts[0].x} ${H - BOTTOM} ` +
+    opsPts.map((p) => `L ${p.x} ${p.y}`).join(" ") +
+    ` L ${opsPts[opsPts.length - 1].x} ${H - BOTTOM} Z`;
+  const opsLine = opsPts.map((p) => `${p.x},${p.y}`).join(" ");
+  const valLine = valPts.map((p) => `${p.x},${p.y}`).join(" ");
+  const gridY = [0, 0.33, 0.66, 1].map((f) => H - BOTTOM - f * (H - PAD - BOTTOM));
   return (
     <div className="chart trend">
-      <span className="chartTitle">TENDÊNCIA DE OPERAÇÕES · ÚLTIMOS {daily.length} DIAS</span>
-      <svg viewBox={`0 0 ${W} ${H}`} className="trendSvg" role="img" aria-label="Tendência de operações por dia">
+      <div className="trendHead">
+        <span className="chartTitle">TENDÊNCIA · ÚLTIMOS {daily.length} DIAS</span>
+        <div className="legend">
+          <span className="lg">
+            <i className="lgDot lgDotOps" /> Operações
+          </span>
+          <span className="lg">
+            <i className="lgDot lgDotVal" /> Valor processado
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="trendSvg" role="img" aria-label="Tendência de operações e valor processado por dia">
         <defs>
           <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.32" />
+            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.3" />
             <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
@@ -1289,22 +1303,37 @@ function TrendChart({ daily }: { daily: Daily[] }) {
         ))}
         <path d={area} fill="url(#trendFill)" />
         <polyline
-          points={line}
+          points={opsLine}
           fill="none"
           className="trendLine"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {pts.map((p) => (
+        <polyline
+          points={valLine}
+          fill="none"
+          className="valLine"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="1 0"
+        />
+        {opsPts.map((p) => (
           <g key={p.date} className="trendDotWrap">
             <circle cx={p.x} cy={p.y} r="3.5" className="trendDot" />
             <title>{`${p.date}: ${p.operations} op · ${money.format(p.value)}`}</title>
           </g>
         ))}
+        {valPts.map((p) => (
+          <g key={"v" + p.date} className="trendDotWrap">
+            <circle cx={p.x} cy={p.y} r="3" className="valDot" />
+            <title>{`${p.date}: valor ${money.format(p.value)}`}</title>
+          </g>
+        ))}
       </svg>
       <div className="trendLabels">
-        {pts.map((p) => (
+        {opsPts.map((p) => (
           <span key={p.date}>{shortDate(p.date)}</span>
         ))}
       </div>
