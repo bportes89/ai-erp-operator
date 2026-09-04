@@ -21,6 +21,10 @@ class ERPAdapter(ABC):
     async def create_sales_order(self, operation: Operation, idempotency_key: str) -> dict: ...
 
     @abstractmethod
+    async def verify_order(self, external_id: str) -> dict:
+        """Confere o pedido no ERP depois de criado (conferência posterior)."""
+
+    @abstractmethod
     async def health_check(self) -> bool: ...
 
 
@@ -34,6 +38,9 @@ class DemoERPAdapter(ERPAdapter):
             "executed_at": datetime.now(timezone.utc).isoformat(),
             "idempotency_key": idempotency_key,
         }
+
+    async def verify_order(self, external_id: str) -> dict:
+        return {"found": True, "status": "ok"}
 
     async def health_check(self) -> bool:
         return True
@@ -62,6 +69,9 @@ class CSVExportAdapter(ERPAdapter):
             "storage": storage,
         }
 
+    async def verify_order(self, external_id: str) -> dict:
+        return {"found": True, "status": "exported"}
+
     async def health_check(self) -> bool:
         return True
 
@@ -74,6 +84,9 @@ class ManualAdapter(ERPAdapter):
     async def create_sales_order(self, operation: Operation, idempotency_key: str) -> dict:
         raise ManualExecutionError("Execução manual: exporte o pedido e cadastre no ERP")
 
+    async def verify_order(self, external_id: str) -> dict:
+        return {"found": False, "status": "manual"}
+
     async def health_check(self) -> bool:
         return False
 
@@ -83,6 +96,15 @@ STRATEGIES: dict[str, type[ERPAdapter]] = {
     "csv": CSVExportAdapter,
     "manual": ManualAdapter,
 }
+
+
+def register_http_adapter() -> None:
+    from app.erp_http import HttpERPAdapter
+
+    STRATEGIES["http"] = HttpERPAdapter
+
+
+register_http_adapter()
 
 
 async def execute_with_fallback(operation: Operation, idempotency_key: str) -> tuple[dict, str, str | None]:

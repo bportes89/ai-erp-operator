@@ -17,6 +17,17 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     extraction_inline: bool = False
+    erp_http_base_url: str = ""
+    erp_http_token: str = ""
+    erp_http_auth_header: str = "Authorization"
+    erp_http_auth_scheme: str = "Bearer"
+    erp_http_create_path: str = "/orders"
+    erp_http_verify_path: str = "/orders/{external_id}"
+    erp_http_payload: str = '{"reference":{reference},"supplier":{supplier},"tax_id":{tax_id},"due_date":{due_date},"cost_center":{cost_center},"total":{total},"idempotency_key":{idempotency_key},"items":{items}}'
+    erp_http_item_fields: str = "{}"
+    erp_http_external_id_path: str = "id"
+    erp_http_timeout: int = 10
+    erp_http_retries: int = 2
     llm_provider: str = "none"
     llm_api_key: str = ""
     llm_model: str = ""

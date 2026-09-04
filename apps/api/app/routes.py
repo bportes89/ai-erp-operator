@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import record_event
 from app.config import get_settings
 from app.database import get_session
-from app.erp import ManualExecutionError, execute_with_fallback
+from app.erp import STRATEGIES, ManualExecutionError, execute_with_fallback
 from app.export import operation_to_csv, operation_to_xml
 from app.jobs import dispatch, process_operation
 from app.matching import apply_matches, get_customer, learn_mapping
@@ -571,7 +571,40 @@ async def execute(
             "status": "completed",
         },
     )
+    await _verify_execution(session, user.organization_id, strategy, response["external_id"], op.id, user.id)
     return ExecuteResult(**response)
+
+
+async def _verify_execution(session, organization_id, strategy, external_id, operation_id, actor_id) -> None:
+    adapter_cls = STRATEGIES.get(strategy)
+    if not adapter_cls:
+        return
+    try:
+        adapter = adapter_cls()
+        verification = await adapter.verify_order(external_id)
+        await record_event(
+            session,
+            organization_id,
+            "erp.verified" if verification.get("found") else "erp.verify_failed",
+            {
+                "external_id": external_id,
+                "status": verification.get("status"),
+                "found": verification.get("found"),
+            },
+            operation_id,
+            actor_id,
+        )
+        await session.commit()
+    except Exception as exc:
+        await record_event(
+            session,
+            organization_id,
+            "erp.verify_failed",
+            {"external_id": external_id, "error": str(exc)},
+            operation_id,
+            actor_id,
+        )
+        await session.commit()
 
 
 @router.get("/operations/{operation_id}/export")
