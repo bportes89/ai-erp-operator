@@ -529,6 +529,22 @@ export default function Page() {
                 <Icon name="check" /> Conecta ao seu ERP
               </li>
             </ul>
+            <div className="loginStats">
+              <span className="lsLabel">Resultados típicos</span>
+              <div className="lsRow">
+                <b>3.847</b>
+                <span>pedidos/mês</span>
+              </div>
+              <div className="lsRow">
+                <b>R$ 12,4 mi</b>
+                <span>valor processado</span>
+              </div>
+              <div className="lsRow">
+                <b>96%</b>
+                <span>taxa de automação</span>
+              </div>
+              <small>Dados ilustrativos</small>
+            </div>
           </aside>
           <section className="loginCard">
             <button

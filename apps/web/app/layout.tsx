@@ -1,4 +1,7 @@
 import "./styles.css";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata = {
   title: "AIOperator",
@@ -8,7 +11,7 @@ export const metadata = {
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" data-theme="dark">
-      <body>
+      <body className={inter.className}>
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('ao_theme');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark')}catch(e){document.documentElement.setAttribute('data-theme','dark')}`,

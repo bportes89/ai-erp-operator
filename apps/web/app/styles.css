@@ -1,6 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
-:root {
+﻿:root {
   --bg: #070d18;
   --surface: rgba(15, 23, 38, 0.82);
   --surface-solid: #0f1726;
@@ -1847,4 +1845,39 @@ button:disabled {
 }
 .tlHash span {
   cursor: help;
+}
+.loginStats {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+}
+.lsLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--brand);
+  text-transform: uppercase;
+}
+.lsRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lsRow b {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.lsRow span {
+  font-size: 13px;
+  color: var(--sidebar-muted);
+}
+.loginStats small {
+  font-size: 10.5px;
+  color: var(--faint);
 }
