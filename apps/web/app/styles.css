@@ -1478,3 +1478,35 @@ button:disabled {
     align-items: stretch;
   }
 }
+.trend { margin-top: 0; margin-bottom: 18px; }
+.trendSvg {
+  width: 100%;
+  height: 190px;
+  display: block;
+  margin-top: 10px;
+}
+.gridLine {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.trendLine {
+  stroke: var(--brand);
+}
+.trendDot {
+  fill: var(--brand);
+  stroke: var(--bg);
+  stroke-width: 2;
+  transition: r 0.15s var(--ease);
+}
+.trendDotWrap:hover .trendDot {
+  r: 6;
+}
+.trendLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0 14px;
+}

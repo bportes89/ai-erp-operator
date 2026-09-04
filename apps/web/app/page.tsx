@@ -124,6 +124,7 @@ export default function Page() {
       const rows: Operation[] = await response.json();
       setOperations(rows);
       setSelected((prev) => rows.find((r) => r.id === prev?.id) ?? rows[0] ?? null);
+      loadRoi();
     } catch {
       setError("API indisponível");
     }
@@ -693,6 +694,7 @@ export default function Page() {
                 <Metric label="COMPLETADOS" value={String(completed)} />
                 <Metric label="VALOR PROCESSADO" value={money.format(processedValue)} />
               </div>
+              <TrendChart daily={roi?.daily ?? []} />
               <div className="grid">
                 <section className="list">
                   <h2>Fila de pedidos</h2>
@@ -1242,6 +1244,71 @@ function Icon({ name }: { name: string }) {
     >
       {paths[name]}
     </svg>
+  );
+}
+
+function TrendChart({ daily }: { daily: Daily[] }) {
+  if (daily.length === 0)
+    return (
+      <div className="chart trend">
+        <span className="chartTitle">TENDÊNCIA DE OPERAÇÕES</span>
+        <div className="empty">Envie pedidos para ver a evolução.</div>
+      </div>
+    );
+  const W = 720;
+  const H = 190;
+  const PAD = 14;
+  const BOTTOM = 34;
+  const max = Math.max(1, ...daily.map((d) => d.operations));
+  const step = Math.max(1, daily.length - 1);
+  const pts = daily.map((d, i) => ({
+    x: PAD + (i * (W - PAD * 2)) / step,
+    y: H - BOTTOM - (d.operations / max) * (H - PAD - BOTTOM),
+    ...d,
+  }));
+  const area =
+    `M ${pts[0].x} ${H - BOTTOM} ` +
+    pts.map((p) => `L ${p.x} ${p.y}`).join(" ") +
+    ` L ${pts[pts.length - 1].x} ${H - BOTTOM} Z`;
+  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const gridY = [0, 0.33, 0.66, 1].map(
+    (f) => H - BOTTOM - f * (H - PAD - BOTTOM)
+  );
+  return (
+    <div className="chart trend">
+      <span className="chartTitle">TENDÊNCIA DE OPERAÇÕES · ÚLTIMOS {daily.length} DIAS</span>
+      <svg viewBox={`0 0 ${W} ${H}`} className="trendSvg" role="img" aria-label="Tendência de operações por dia">
+        <defs>
+          <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {gridY.map((y) => (
+          <line key={y} x1={PAD} y1={y} x2={W - PAD} y2={y} className="gridLine" />
+        ))}
+        <path d={area} fill="url(#trendFill)" />
+        <polyline
+          points={line}
+          fill="none"
+          className="trendLine"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {pts.map((p) => (
+          <g key={p.date} className="trendDotWrap">
+            <circle cx={p.x} cy={p.y} r="3.5" className="trendDot" />
+            <title>{`${p.date}: ${p.operations} op · ${money.format(p.value)}`}</title>
+          </g>
+        ))}
+      </svg>
+      <div className="trendLabels">
+        {pts.map((p) => (
+          <span key={p.date}>{shortDate(p.date)}</span>
+        ))}
+      </div>
+    </div>
   );
 }
 
