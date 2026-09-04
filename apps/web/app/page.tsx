@@ -68,6 +68,22 @@ type Recipe = {
   active: boolean;
   created_at: string;
 };
+type ErpConnector = {
+  id: string;
+  name: string;
+  base_url: string;
+  auth_header: string;
+  auth_scheme: string;
+  create_path: string;
+  verify_path: string;
+  payload: string;
+  item_fields: string;
+  external_id_path: string;
+  timeout: number;
+  retries: number;
+  active: boolean;
+  token_last4: string | null;
+};
 type ROI = {
   total_operations: number;
   completed: number;
@@ -103,6 +119,7 @@ export default function Page() {
   const [threshold, setThreshold] = useState<string>("");
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [uploadRecipeId, setUploadRecipeId] = useState<string>("");
+  const [connector, setConnector] = useState<ErpConnector | null>(null);
   const [selected, setSelected] = useState<Operation | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -290,12 +307,58 @@ export default function Page() {
     else setError("Falha ao atualizar processo");
   }
 
+  async function loadConnector() {
+    try {
+      const r = await fetch(`${API}/organization/connector`, { headers: headers() as HeadersInit });
+      if (r.status === 404) {
+        setConnector(null);
+        return;
+      }
+      if (r.ok) setConnector(await r.json());
+    } catch {
+      setError("API indisponível");
+    }
+  }
+
+  async function saveConnector(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    const data = new FormData(e.currentTarget);
+    const body: Record<string, string | number | boolean> = {
+      name: String(data.get("name")),
+      base_url: String(data.get("base_url")),
+      auth_scheme: String(data.get("auth_scheme") || "Bearer"),
+      create_path: String(data.get("create_path") || "/orders"),
+      verify_path: String(data.get("verify_path") || "/orders/{external_id}"),
+      payload: String(data.get("payload") || "{}"),
+      item_fields: String(data.get("item_fields") || "{}"),
+      external_id_path: String(data.get("external_id_path") || "id"),
+      timeout: Number(data.get("timeout")) || 10,
+      retries: Number(data.get("retries")) || 2,
+      active: data.get("active") === "on",
+    };
+    const token = String(data.get("token") || "");
+    if (token) body.token = token;
+    const r = await fetch(`${API}/organization/connector`, {
+      method: "PATCH",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      setConnector(await r.json());
+      setError("");
+    } else setError((await r.json()).detail || "Falha ao salvar conector");
+  }
+
   function navigate(next: View) {
     setView(next);
     if (next === "mappings") loadMappings();
     if (next === "audit") loadAudit();
     if (next === "roi") loadRoi();
-    if (next === "webhooks") loadWebhooks();
+    if (next === "webhooks") {
+      loadWebhooks();
+      loadConnector();
+    }
     if (next === "rules") loadSettings();
     if (next === "recipes") loadRecipes();
   }
@@ -681,7 +744,7 @@ export default function Page() {
             <Icon name="roi" /> ROI
           </button>
           <button className={view === "webhooks" ? "active" : ""} onClick={() => navigate("webhooks")}>
-            <Icon name="webhooks" /> Webhooks
+            <Icon name="webhooks" /> Integrações
           </button>
           <button className={view === "rules" ? "active" : ""} onClick={() => navigate("rules")}>
             <Icon name="rules" /> Regras
@@ -1086,10 +1149,116 @@ export default function Page() {
               <div className="title">
                 <div>
                   <span>INTEGRAÇÕES</span>
+                  <h1>Conector do ERP</h1>
+                  <p>
+                    Configure o ERP da sua organização. O conector genérico REST usa o template
+                    abaixo para criar pedidos, com idempotência e verificação posterior.
+                  </p>
+                </div>
+              </div>
+              <div className="connStatus">
+                {connector?.active ? (
+                  <>
+                    Conector ativo: <b>{connector.name}</b> ({connector.base_url})
+                    {connector.token_last4 ? ` · token ••••${connector.token_last4}` : ""}
+                  </>
+                ) : (
+                  <>Nenhum conector ativo — as execuções usam o modo global (demo/CSV).</>
+                )}
+              </div>
+              <form className="connForm" onSubmit={saveConnector}>
+                <div className="connGrid">
+                  <label>
+                    Nome
+                    <input name="name" placeholder="ERP do cliente" required defaultValue={connector?.name ?? ""} />
+                  </label>
+                  <label>
+                    Base URL
+                    <input
+                      name="base_url"
+                      type="url"
+                      placeholder="https://api.erp.com"
+                      required
+                      defaultValue={connector?.base_url ?? ""}
+                    />
+                  </label>
+                  <label>
+                    Token
+                    <input
+                      name="token"
+                      type="password"
+                      placeholder={
+                        connector?.token_last4 ? `••••${connector.token_last4} (mantém atual)` : "Bearer token"
+                      }
+                    />
+                  </label>
+                  <label>
+                    Esquema de autenticação
+                    <input name="auth_scheme" placeholder="Bearer" defaultValue={connector?.auth_scheme ?? "Bearer"} />
+                  </label>
+                  <label>
+                    Caminho de criação
+                    <input name="create_path" defaultValue={connector?.create_path ?? "/orders"} />
+                  </label>
+                  <label>
+                    Caminho de verificação
+                    <input name="verify_path" defaultValue={connector?.verify_path ?? "/orders/{external_id}"} />
+                  </label>
+                  <label>
+                    Campo do ID na resposta
+                    <input name="external_id_path" defaultValue={connector?.external_id_path ?? "id"} />
+                  </label>
+                  <label>
+                    Timeout (s)
+                    <input name="timeout" type="number" defaultValue={connector?.timeout ?? 10} />
+                  </label>
+                  <label>
+                    Tentativas (retries)
+                    <input name="retries" type="number" defaultValue={connector?.retries ?? 2} />
+                  </label>
+                </div>
+                <label className="connBlock">
+                  Template de payload (JSON) — placeholders: {"{reference}"} {"{supplier}"} {"{tax_id}"}{" "}
+                  {"{due_date}"} {"{cost_center}"} {"{total}"} {"{idempotency_key}"} {"{items}"}
+                  <textarea
+                    name="payload"
+                    rows={4}
+                    spellCheck={false}
+                    defaultValue={
+                      connector?.payload ??
+                      '{"reference":{reference},"supplier":{supplier},"tax_id":{tax_id},"due_date":{due_date},"cost_center":{cost_center},"total":{total},"idempotency_key":{idempotency_key},"items":{items}}'
+                    }
+                  />
+                </label>
+                <label className="connBlock">
+                  Mapeamento de campos dos itens (JSON)
+                  <input
+                    name="item_fields"
+                    placeholder='{"customer_code":"sku","quantity":"qtd"}'
+                    defaultValue={connector?.item_fields ?? "{}"}
+                  />
+                </label>
+                <div className="connFooter">
+                  <label className="connCheck">
+                    <input type="checkbox" name="active" defaultChecked={connector?.active ?? true} />
+                    Conector ativo
+                  </label>
+                  <button disabled={loading}>Salvar conector</button>
+                </div>
+              </form>
+              <div className="connNotes">
+                <span>Como funciona: ao executar um pedido, o sistema envia o payload preenchido para
+                  <b> {connector?.base_url || "base_url"}{connector?.create_path || "/orders"}</b>,
+                  com header <b>Idempotency-Key</b>. Em falha, cai para exportação CSV.
+                </span>
+              </div>
+              <div className="title" style={{ marginTop: 34 }}>
+                <div>
+                  <span>INTEGRAÇÕES</span>
                   <h1>Webhooks de operações</h1>
                   <p>
                     Receba eventos assinados (HMAC) quando uma operação fica pronta ou é executada
-                    no ERP. Use para sincronizar sistemas ou disparar fluxos externos.
+                    no ERP.
                   </p>
                 </div>
               </div>
