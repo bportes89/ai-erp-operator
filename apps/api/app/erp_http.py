@@ -10,38 +10,39 @@ from app.models import Operation
 
 
 class HttpERPAdapter(ERPAdapter):
-    """Conector HTTP genérico e configurável por env.
+    """Conector HTTP genérico e configurável.
 
     Funciona com qualquer ERP que exponha uma API REST de criação de pedidos.
+    A configuração pode vir de env (global) ou de um dicionário por organização.
     O payload é um template JSON com placeholders (ex.: {reference}, {total}, {items});
     a resposta é lida por caminho (ex.: "data.id") para extrair o external_id.
     """
 
     name = "http"
 
-    def __init__(self, transport=None):
+    def __init__(self, transport=None, config: dict | None = None):
         self._transport = transport
+        self._config = config or {}
 
-    def _settings(self):
-        s = get_settings()
-        return s, s.erp_http_payload or ""
+    def _cfg(self, key: str):
+        value = self._config.get(key)
+        if value not in (None, ""):
+            return value
+        return getattr(get_settings(), key)
 
-    def _headers(self):
-        s = get_settings()
-        headers = {}
-        if s.erp_http_token:
-            header = s.erp_http_auth_header or "Authorization"
-            if s.erp_http_auth_scheme:
-                headers[header] = f"{s.erp_http_auth_scheme} {s.erp_http_token}"
-            else:
-                headers[header] = s.erp_http_token
+    def _headers(self) -> dict:
+        headers: dict = {}
+        token = self._cfg("erp_http_token")
+        if token:
+            header = self._cfg("erp_http_auth_header") or "Authorization"
+            scheme = self._cfg("erp_http_auth_scheme")
+            headers[header] = f"{scheme} {token}" if scheme else token
         return headers
 
     def _render_payload(self, template: str, op: Operation, key: str) -> dict:
-        s = get_settings()
         item_fields: dict = {}
         try:
-            item_fields = json.loads(s.erp_http_item_fields or "{}")
+            item_fields = json.loads(self._cfg("erp_http_item_fields") or "{}")
         except json.JSONDecodeError:
             item_fields = {}
         items = []
@@ -70,7 +71,9 @@ class HttpERPAdapter(ERPAdapter):
         for k, v in values.items():
             token = "{" + k + "}"
             if token in text:
-                text = text.replace(token, json.dumps(v, ensure_ascii=False) if isinstance(v, str) else str(v))
+                text = text.replace(
+                    token, json.dumps(v, ensure_ascii=False) if isinstance(v, str) else str(v)
+                )
         text = text.replace("{items}", json.dumps(items, ensure_ascii=False))
         try:
             return json.loads(text)
@@ -95,25 +98,28 @@ class HttpERPAdapter(ERPAdapter):
         return httpx.AsyncClient(timeout=timeout)
 
     async def create_sales_order(self, operation: Operation, idempotency_key: str) -> dict:
-        s, template = self._settings()
-        base = (s.erp_http_base_url or "").rstrip("/")
+        template = self._cfg("erp_http_payload") or ""
+        base = (self._cfg("erp_http_base_url") or "").rstrip("/")
         if not base:
             raise ExecutionError("ERP_HTTP_BASE_URL não configurada")
         payload = self._render_payload(template, operation, idempotency_key)
         headers = self._headers()
         headers["Idempotency-Key"] = idempotency_key
-        url = base + s.erp_http_create_path
+        url = base + self._cfg("erp_http_create_path")
+        external_path = self._cfg("erp_http_external_id_path")
+        timeout = int(self._cfg("erp_http_timeout"))
+        retries = int(self._cfg("erp_http_retries"))
         last_error: ExecutionError | None = None
-        for attempt in range(1 + s.erp_http_retries):
+        for attempt in range(1 + retries):
             try:
-                async with self._client(s.erp_http_timeout) as client:
+                async with self._client(timeout) as client:
                     response = await client.post(url, json=payload, headers=headers)
                 if response.status_code < 400:
                     body = response.json() if response.content else {}
-                    external = self._dig(body, s.erp_http_external_id_path)
+                    external = self._dig(body, external_path)
                     if not external:
                         raise ExecutionError(
-                            f"Resposta sem external_id (path '{s.erp_http_external_id_path}')"
+                            f"Resposta sem external_id (path '{external_path}')"
                         )
                     return {
                         "external_id": str(external),
@@ -124,7 +130,7 @@ class HttpERPAdapter(ERPAdapter):
                     }
                 if response.status_code == 409:
                     body = response.json() if response.content else {}
-                    external = self._dig(body, s.erp_http_external_id_path)
+                    external = self._dig(body, external_path)
                     if external:
                         return {
                             "external_id": str(external),
@@ -134,7 +140,9 @@ class HttpERPAdapter(ERPAdapter):
                             "response": body,
                         }
                     raise ExecutionError(f"ERP HTTP 409 sem external_id: {response.text[:200]}")
-                last_error = ExecutionError(f"ERP HTTP {response.status_code}: {response.text[:200]}")
+                last_error = ExecutionError(
+                    f"ERP HTTP {response.status_code}: {response.text[:200]}"
+                )
             except ExecutionError:
                 raise
             except httpx.HTTPError as exc:
@@ -144,14 +152,16 @@ class HttpERPAdapter(ERPAdapter):
         raise last_error or ExecutionError("Falha desconhecida no conector HTTP")
 
     async def verify_order(self, external_id: str) -> dict:
-        s = get_settings()
-        base = (s.erp_http_base_url or "").rstrip("/")
+        base = (self._cfg("erp_http_base_url") or "").rstrip("/")
         if not base:
             return {"found": False, "status": "not_configured"}
-        path = (s.erp_http_verify_path or "/orders/{external_id}").replace("{external_id}", external_id)
+        path = (self._cfg("erp_http_verify_path") or "/orders/{external_id}").replace(
+            "{external_id}", external_id
+        )
         headers = self._headers()
+        timeout = int(self._cfg("erp_http_timeout"))
         try:
-            async with self._client(s.erp_http_timeout) as client:
+            async with self._client(timeout) as client:
                 response = await client.get(base + path, headers=headers)
             if response.status_code >= 400:
                 return {"found": False, "status": "not_found", "http": response.status_code}
@@ -166,13 +176,29 @@ class HttpERPAdapter(ERPAdapter):
             return {"found": False, "status": "error", "error": str(exc)}
 
     async def health_check(self) -> bool:
-        s = get_settings()
-        base = (s.erp_http_base_url or "").rstrip("/")
+        base = (self._cfg("erp_http_base_url") or "").rstrip("/")
         if not base:
             return False
         try:
-            async with self._client(s.erp_http_timeout) as client:
+            async with self._client(int(self._cfg("erp_http_timeout"))) as client:
                 response = await client.get(base + "/health", headers=self._headers())
             return response.status_code < 400
         except httpx.HTTPError:
             return False
+
+
+def connector_to_config(connector) -> dict:
+    """Converte um registro ErpConnector em config aceita pelo HttpERPAdapter."""
+    return {
+        "erp_http_base_url": connector.base_url,
+        "erp_http_token": connector.token or "",
+        "erp_http_auth_header": connector.auth_header or "Authorization",
+        "erp_http_auth_scheme": connector.auth_scheme or "Bearer",
+        "erp_http_create_path": connector.create_path or "/orders",
+        "erp_http_verify_path": connector.verify_path or "/orders/{external_id}",
+        "erp_http_payload": connector.payload or "{}",
+        "erp_http_item_fields": connector.item_fields or "{}",
+        "erp_http_external_id_path": connector.external_id_path or "id",
+        "erp_http_timeout": connector.timeout or 10,
+        "erp_http_retries": connector.retries or 2,
+    }

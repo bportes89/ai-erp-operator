@@ -380,6 +380,85 @@ async def test_recipe_flow_with_required_fields(api_env, client):
 
 
 @pytest.mark.asyncio
+async def test_connector_crud_and_execute_uses_it(api_env, client, monkeypatch):
+    maker = api_env
+    token = await _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r = await client.get("/api/v1/organization/connector", headers=headers)
+    assert r.status_code == 404
+
+    r = await client.patch(
+        "/api/v1/organization/connector",
+        headers=headers,
+        json={
+            "name": "ERP Piloto",
+            "base_url": "http://fake-erp",
+            "token": "abc",
+            "payload": '{"reference":{reference},"idempotency_key":{idempotency_key},"items":{items}}',
+            "external_id_path": "id",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["token_last4"] == "abc"
+    assert "segredo" not in str(body)
+
+    # executa com conector apontando ao fake ERP (transport injetado)
+    import httpx
+
+    from app.fake_erp import app as fake_app
+    from app.fake_erp import reset
+
+    reset()
+
+    async def fake_org_adapter(session, organization_id):
+        from app.erp_http import HttpERPAdapter, connector_to_config
+
+        from app.models import ErpConnector
+        from sqlalchemy import select
+
+        connector = await session.scalar(
+            select(ErpConnector).where(
+                ErpConnector.organization_id == organization_id,
+                ErpConnector.active.is_(True),
+            )
+        )
+        return HttpERPAdapter(
+            config=connector_to_config(connector), transport=httpx.ASGITransport(app=fake_app)
+        )
+
+    monkeypatch.setattr("app.routes._org_erp_adapter", fake_org_adapter)
+
+    async with maker() as session:
+        org = await session.scalar(select(Organization))
+        op = Operation(
+            organization_id=org.id,
+            reference="PC-CONN",
+            filename="c.pdf",
+            total=100.0,
+            confidence=90,
+            status=OperationStatus.READY,
+        )
+        session.add(op)
+        await session.commit()
+        op_id = op.id
+
+    r = await client.post(
+        f"/api/v1/operations/{op_id}/execute",
+        headers={**headers, "Idempotency-Key": "conn-1"},
+    )
+    assert r.status_code == 200, r.text
+    external = r.json()["external_id"]
+    assert external  # UUID gerado pelo fake ERP
+
+    aud = await client.get("/api/v1/audit", headers=headers)
+    types = [e["event_type"] for e in aud.json()]
+    assert "erp.executed" in types
+    assert "erp.verified" in types
+
+
+@pytest.mark.asyncio
 async def test_patch_operation_and_customer(api_env, client):
     maker = api_env
     token = await _token(client)

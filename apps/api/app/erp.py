@@ -107,17 +107,18 @@ def register_http_adapter() -> None:
 register_http_adapter()
 
 
-async def execute_with_fallback(operation: Operation, idempotency_key: str) -> tuple[dict, str, str | None]:
-    """Executa no adaptador primário; em falha, cai para CSV; em tudo, manual.
+async def execute_with_fallback(
+    operation: Operation, idempotency_key: str, adapter: ERPAdapter | None = None
+) -> tuple[dict, str, str | None]:
+    """Executa no adaptador primário; em falha, cai para CSV.
 
     Retorna (resultado, estrategia_usada, estrategia_anterior_que_falhou).
     """
-    mode = get_settings().erp_mode
-    primary = STRATEGIES.get(mode, DemoERPAdapter)
+    primary = adapter or STRATEGIES.get(get_settings().erp_mode, DemoERPAdapter)()
     fallback = CSVExportAdapter
     last_strategy = None
     try:
-        return await primary().create_sales_order(operation, idempotency_key), primary.name, None
+        return await primary.create_sales_order(operation, idempotency_key), primary.name, None
     except ManualExecutionError as exc:
         raise ManualExecutionError(str(exc)) from exc
     except Exception:

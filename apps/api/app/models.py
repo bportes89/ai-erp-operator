@@ -11,6 +11,7 @@ from sqlalchemy import (
     LargeBinary,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -70,6 +71,31 @@ class ProcessRecipe(Base):
     approval_threshold: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ErpConnector(Base):
+    """Configuração do conector ERP da organização (por org, não global)."""
+
+    __tablename__ = "erp_connectors"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    base_url: Mapped[str] = mapped_column(String(500))
+    token: Mapped[str | None] = mapped_column(String(255))
+    auth_header: Mapped[str] = mapped_column(String(120), default="Authorization")
+    auth_scheme: Mapped[str] = mapped_column(String(80), default="Bearer")
+    create_path: Mapped[str] = mapped_column(String(200), default="/orders")
+    verify_path: Mapped[str] = mapped_column(String(200), default="/orders/{external_id}")
+    payload: Mapped[str] = mapped_column(Text, default="{}")
+    item_fields: Mapped[str] = mapped_column(String(500), default="{}")
+    external_id_path: Mapped[str] = mapped_column(String(120), default="id")
+    timeout: Mapped[int] = mapped_column(Integer, default=10)
+    retries: Mapped[int] = mapped_column(Integer, default=2)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class User(Base):

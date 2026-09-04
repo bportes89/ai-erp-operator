@@ -56,6 +56,41 @@ class RecipeOut(BaseModel):
     created_at: datetime
 
 
+class ErpConnectorIn(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    base_url: str = Field(min_length=1, max_length=500)
+    token: str | None = Field(default=None, max_length=255)
+    auth_header: str = Field(default="Authorization", max_length=120)
+    auth_scheme: str = Field(default="Bearer", max_length=80)
+    create_path: str = Field(default="/orders", max_length=200)
+    verify_path: str = Field(default="/orders/{external_id}", max_length=200)
+    payload: str = Field(default="{}", max_length=4000)
+    item_fields: str = Field(default="{}", max_length=500)
+    external_id_path: str = Field(default="id", max_length=120)
+    timeout: int = Field(default=10, ge=1, le=120)
+    retries: int = Field(default=2, ge=0, le=5)
+    active: bool = True
+
+
+class ErpConnectorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    base_url: str
+    auth_header: str
+    auth_scheme: str
+    create_path: str
+    verify_path: str
+    payload: str
+    item_fields: str
+    external_id_path: str
+    timeout: int
+    retries: int
+    active: bool
+    token_last4: str | None = None
+    created_at: datetime
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

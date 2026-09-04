@@ -14,6 +14,7 @@ from app.audit import record_event
 from app.config import get_settings
 from app.database import get_session
 from app.erp import STRATEGIES, ManualExecutionError, execute_with_fallback
+from app.erp_http import HttpERPAdapter, connector_to_config
 from app.export import operation_to_csv, operation_to_xml
 from app.jobs import dispatch, process_operation
 from app.matching import apply_matches, get_customer, learn_mapping
@@ -21,6 +22,7 @@ from app.rules import approval_threshold
 from app.models import (
     AuditEvent,
     Customer,
+    ErpConnector,
     IdempotencyKey,
     Operation,
     OperationStatus,
@@ -46,6 +48,8 @@ from app.schemas import (
     OperationOut,
     OperationPatch,
     OrgSettings,
+    ErpConnectorIn,
+    ErpConnectorOut,
     RecipeCreate,
     RecipeOut,
     RecipeUpdate,
@@ -398,6 +402,55 @@ async def update_organization_settings(
     return OrgSettings(approval_threshold=approval_threshold(org.settings))
 
 
+@router.get("/organization/connector", response_model=ErpConnectorOut)
+async def get_connector(
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
+):
+    row = await session.scalar(
+        select(ErpConnector).where(ErpConnector.organization_id == user.organization_id)
+    )
+    if not row:
+        raise HTTPException(404, "Conector não configurado para esta organização")
+    data = ErpConnectorOut.model_validate(row)
+    if row.token:
+        data.token_last4 = row.token[-4:]
+    return data
+
+
+@router.patch("/organization/connector", response_model=ErpConnectorOut)
+async def upsert_connector(
+    body: ErpConnectorIn,
+    user: User = Depends(require_roles("admin")),
+    session: AsyncSession = Depends(get_session),
+):
+    row = await session.scalar(
+        select(ErpConnector).where(ErpConnector.organization_id == user.organization_id)
+    )
+    if not row:
+        row = ErpConnector(
+            organization_id=user.organization_id, **body.model_dump(exclude={"token"})
+        )
+        session.add(row)
+    else:
+        for field, value in body.model_dump(exclude={"token"}).items():
+            setattr(row, field, value)
+    if body.token:
+        row.token = body.token
+    await record_event(
+        session,
+        user.organization_id,
+        "connector.updated",
+        {"name": row.name, "base_url": row.base_url},
+        actor_id=user.id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    data = ErpConnectorOut.model_validate(row)
+    if row.token:
+        data.token_last4 = row.token[-4:]
+    return data
+
+
 @router.get("/recipes", response_model=list[RecipeOut])
 async def recipes(
     user: User = Depends(current_user), session: AsyncSession = Depends(get_session)
@@ -501,8 +554,9 @@ async def execute(
         raise HTTPException(422, "Corrija os problemas antes de executar")
     if any(not item.matched for item in op.items):
         raise HTTPException(422, "Existem produtos sem mapeamento")
+    adapter = await _org_erp_adapter(session, user.organization_id)
     try:
-        result, strategy, failed = await execute_with_fallback(op, idempotency_key)
+        result, strategy, failed = await execute_with_fallback(op, idempotency_key, adapter=adapter)
     except ManualExecutionError as exc:
         raise HTTPException(409, str(exc)) from exc
     except Exception as exc:
@@ -571,17 +625,32 @@ async def execute(
             "status": "completed",
         },
     )
-    await _verify_execution(session, user.organization_id, strategy, response["external_id"], op.id, user.id)
+    await _verify_execution(
+        session, user.organization_id, strategy, response["external_id"], op.id, user.id, adapter
+    )
     return ExecuteResult(**response)
 
 
-async def _verify_execution(session, organization_id, strategy, external_id, operation_id, actor_id) -> None:
-    adapter_cls = STRATEGIES.get(strategy)
-    if not adapter_cls:
+async def _org_erp_adapter(session, organization_id: str):
+    connector = await session.scalar(
+        select(ErpConnector).where(
+            ErpConnector.organization_id == organization_id,
+            ErpConnector.active.is_(True),
+        )
+    )
+    if connector and connector.base_url:
+        return HttpERPAdapter(config=connector_to_config(connector))
+    return None
+
+
+async def _verify_execution(
+    session, organization_id, strategy, external_id, operation_id, actor_id, adapter=None
+) -> None:
+    verify = adapter or (STRATEGIES.get(strategy)() if STRATEGIES.get(strategy) else None)
+    if not verify:
         return
     try:
-        adapter = adapter_cls()
-        verification = await adapter.verify_order(external_id)
+        verification = await verify.verify_order(external_id)
         await record_event(
             session,
             organization_id,

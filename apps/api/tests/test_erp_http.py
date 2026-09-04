@@ -54,8 +54,27 @@ def _op():
 @pytest.fixture
 def adapter(monkeypatch):
     reset()
-    monkeypatch.setattr("app.erp_http.get_settings", lambda: _settings())
-    return HttpERPAdapter(transport=httpx.ASGITransport(app=fake_app))
+    config = _config_dict()
+    return HttpERPAdapter(config=config, transport=httpx.ASGITransport(app=fake_app))
+
+
+def _config_dict(**overrides):
+    base = _settings()
+    config = {
+        "erp_http_base_url": base.erp_http_base_url,
+        "erp_http_token": base.erp_http_token,
+        "erp_http_auth_header": base.erp_http_auth_header,
+        "erp_http_auth_scheme": base.erp_http_auth_scheme,
+        "erp_http_create_path": base.erp_http_create_path,
+        "erp_http_verify_path": base.erp_http_verify_path,
+        "erp_http_payload": base.erp_http_payload,
+        "erp_http_item_fields": base.erp_http_item_fields,
+        "erp_http_external_id_path": base.erp_http_external_id_path,
+        "erp_http_timeout": base.erp_http_timeout,
+        "erp_http_retries": base.erp_http_retries,
+    }
+    config.update(overrides)
+    return config
 
 
 @pytest.mark.asyncio
@@ -78,11 +97,10 @@ async def test_http_idempotent_same_key(adapter):
 
 
 @pytest.mark.asyncio
-async def test_http_item_fields_mapping(monkeypatch):
+async def test_http_item_fields_mapping():
     reset()
-    settings = _settings(erp_http_item_fields='{"customer_code":"sku","quantity":"qtd"}')
-    monkeypatch.setattr("app.erp_http.get_settings", lambda: settings)
-    adapter = HttpERPAdapter(transport=httpx.ASGITransport(app=fake_app))
+    config = _config_dict(erp_http_item_fields='{"customer_code":"sku","quantity":"qtd"}')
+    adapter = HttpERPAdapter(config=config, transport=httpx.ASGITransport(app=fake_app))
     result = await adapter.create_sales_order(_op(), "key-map")
     assert result["external_id"]
     sent = result["response"]
@@ -100,6 +118,19 @@ async def test_fallback_to_csv_when_http_fails(monkeypatch):
     assert strategy == "csv"
     assert failed == "http"
     assert result["status"] == "exported"
+
+
+@pytest.mark.asyncio
+async def test_injected_adapter_is_primary(monkeypatch):
+    reset()
+    adapter = HttpERPAdapter(
+        config=_config_dict(),
+        transport=httpx.ASGITransport(app=fake_app),
+    )
+    result, strategy, failed = await execute_with_fallback(_op(), "key-inj", adapter=adapter)
+    assert strategy == "http"
+    assert failed is None
+    assert result["external_id"]
 
 
 @pytest.mark.asyncio
