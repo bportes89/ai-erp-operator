@@ -991,20 +991,26 @@ export default function Page() {
                   <p>Cada evento guarda o hash do anterior, evidenciando alterações.</p>
                 </div>
               </div>
-              <div className="table">
-                <div className="thead">
-                  <span>Evento</span>
-                  <span>Payload</span>
-                  <span>Hash</span>
-                  <span>Data</span>
-                </div>
+              <div className="timeline">
                 {audits.length === 0 && <div className="empty">Nenhum evento ainda.</div>}
                 {audits.map((a) => (
-                  <div className="trow" key={a.id}>
-                    <span>{a.event_type}</span>
-                    <span className="mono">{JSON.stringify(a.payload)}</span>
-                    <span className="mono">{a.hash.slice(0, 12)}…</span>
-                    <span>{new Date(a.created_at).toLocaleString("pt-BR")}</span>
+                  <div className="tlItem" key={a.id}>
+                    <span className={`tlNode ${tlColor(a.event_type)}`} />
+                    <div className="tlBody">
+                      <div className="tlHead">
+                        <b>{a.event_type}</b>
+                        <time>{new Date(a.created_at).toLocaleString("pt-BR")}</time>
+                      </div>
+                      <div className="tlPayload mono">{JSON.stringify(a.payload)}</div>
+                      <div className="tlHash">
+                        <span title={`${a.event_type} · hash completo`}>hash {a.hash.slice(0, 12)}…</span>
+                        {a.previous_hash && (
+                          <span title="hash do evento anterior">
+                            · prev {a.previous_hash.slice(0, 12)}…
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1221,6 +1227,15 @@ export default function Page() {
               </div>
             </div>
           )}
+          <footer className="appFooter">
+            <div className="footBrand">
+              <Logo size={20} />
+              <span>
+                <b>AIOperator</b> · Plataforma de operações B2B
+              </span>
+            </div>
+            <span className="footMeta">v0.1 · Ambiente de demonstração · © 2026 AIOperator</span>
+          </footer>
         </div>
       </section>
     </main>
@@ -1503,4 +1518,15 @@ function maxDaily(daily: Daily[]) {
 function shortDate(iso: string) {
   const [, m, d] = iso.split("-");
   return `${d}/${m}`;
+}
+
+function tlColor(eventType: string): string {
+  if (eventType.startsWith("erp.")) return "c-ok";
+  if (eventType.startsWith("mapping.")) return "c-approval";
+  if (eventType.startsWith("customer.") || eventType.startsWith("organization."))
+    return "c-warn";
+  if (eventType.startsWith("recipe.")) return "c-blue";
+  if (eventType.startsWith("webhook.")) return "c-cyan";
+  if (eventType.startsWith("user.")) return "c-muted";
+  return "c-brand";
 }

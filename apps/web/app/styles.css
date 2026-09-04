@@ -1746,3 +1746,105 @@ button:disabled {
     display: none;
   }
 }
+.appFooter {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+.footBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.footBrand b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.footMeta {
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline {
+  position: relative;
+  margin-top: 26px;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--line);
+}
+.tlItem {
+  position: relative;
+  padding: 0 0 18px 40px;
+}
+.tlNode {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 3px solid var(--line-strong);
+  box-shadow: 0 0 0 4px var(--c, var(--brand));
+}
+.tlNode.c-brand { --c: var(--brand); }
+.tlNode.c-ok { --c: var(--ok); }
+.tlNode.c-approval { --c: var(--approval); }
+.tlNode.c-warn { --c: var(--warn); }
+.tlNode.c-blue { --c: #3b82f6; }
+.tlNode.c-cyan { --c: #06b6d4; }
+.tlNode.c-muted { --c: var(--faint); }
+.tlBody {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  transition: border-color 0.16s var(--ease), background 0.16s;
+}
+.tlBody:hover {
+  border-color: var(--line-strong);
+  background: rgba(20, 184, 166, 0.04);
+}
+.tlHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.tlHead b {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.tlHead time {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tlPayload {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--body);
+  word-break: break-all;
+}
+.tlHash {
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.tlHash span {
+  cursor: help;
+}
