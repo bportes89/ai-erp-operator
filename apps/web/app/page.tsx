@@ -500,68 +500,99 @@ export default function Page() {
   if (!token)
     return (
       <main className="login">
-        <section>
-          <button
-            className="themeFab"
-            onClick={toggleTheme}
-            aria-label={theme === "light" ? "Modo escuro" : "Modo claro"}
-            title={theme === "light" ? "Modo escuro" : "Modo claro"}
-          >
-            <Icon name={theme === "light" ? "moon" : "sun"} />
-          </button>
-          <div className="logo">AO</div>
-          <span>AI ERP OPERATOR</span>
-          <h1>
-            Operações no ERP,
-            <br />
-            sem digitação manual.
-          </h1>
-          <p>Entre no ambiente da sua empresa para revisar e executar pedidos B2B.</p>
-          <div className="authTabs">
+        <section className="loginShell">
+          <aside className="loginAside">
+            <div className="brand">
+              <b>AO</b>
+              <p>
+                AI ERP Operator<span>Plataforma de operações</span>
+              </p>
+            </div>
+            <div className="loginCopy">
+              <span className="heroEyebrow">Pedidos B2B → ERP</span>
+              <h2>Do PDF ao pedido de venda, sem digitação.</h2>
+              <p>
+                Extração com IA e OCR, revisão humana, aprovações e execução com auditoria completa.
+              </p>
+            </div>
+            <ul className="loginPoints">
+              <li>
+                <Icon name="check" /> Extração inteligente de pedidos
+              </li>
+              <li>
+                <Icon name="check" /> Revisão e aprovações configuráveis
+              </li>
+              <li>
+                <Icon name="check" /> Execução com auditoria encadeada
+              </li>
+              <li>
+                <Icon name="check" /> Conecta ao seu ERP
+              </li>
+            </ul>
+          </aside>
+          <section className="loginCard">
             <button
-              className={authMode === "login" ? "active" : ""}
-              onClick={() => setAuthMode("login")}
+              className="themeFab"
+              onClick={toggleTheme}
+              aria-label={theme === "light" ? "Modo escuro" : "Modo claro"}
+              title={theme === "light" ? "Modo escuro" : "Modo claro"}
             >
-              Entrar
+              <Icon name={theme === "light" ? "moon" : "sun"} />
             </button>
-            <button
-              className={authMode === "register" ? "active" : ""}
-              onClick={() => setAuthMode("register")}
-            >
-              Criar conta
-            </button>
-          </div>
-          <form onSubmit={login}>
-            {authMode === "register" && (
-              <>
-                <label>
-                  Nome
-                  <input name="name" type="text" placeholder="Seu nome" minLength={2} required />
-                </label>
-                <label>
-                  Empresa
-                  <input name="organization" type="text" placeholder="Nome da empresa" />
-                </label>
-              </>
-            )}
-            <label>
-              E-mail
-              <input name="email" type="email" placeholder="voce@empresa.com" required />
-            </label>
-            <label>
-              Senha
-              <input name="password" type="password" placeholder="••••••••" minLength={6} required />
-            </label>
-            {error && <b className="error">{error}</b>}
-            <button disabled={loading}>
-              {loading ? "Aguarde..." : authMode === "login" ? "Entrar no workspace →" : "Criar conta e entrar →"}
-            </button>
-          </form>
-          <small>
-            {authMode === "login"
-              ? "Demonstração: admin@operator.demo · senha operator123"
-              : "Cada conta cria uma empresa separada, com dados isolados."}
-          </small>
+            <div className="logo">AO</div>
+            <span>AI ERP OPERATOR</span>
+            <h1>
+              Operações no ERP,
+              <br />
+              sem digitação manual.
+            </h1>
+            <p>Entre no ambiente da sua empresa para revisar e executar pedidos B2B.</p>
+            <div className="authTabs">
+              <button
+                className={authMode === "login" ? "active" : ""}
+                onClick={() => setAuthMode("login")}
+              >
+                Entrar
+              </button>
+              <button
+                className={authMode === "register" ? "active" : ""}
+                onClick={() => setAuthMode("register")}
+              >
+                Criar conta
+              </button>
+            </div>
+            <form onSubmit={login}>
+              {authMode === "register" && (
+                <>
+                  <label>
+                    Nome
+                    <input name="name" type="text" placeholder="Seu nome" minLength={2} required />
+                  </label>
+                  <label>
+                    Empresa
+                    <input name="organization" type="text" placeholder="Nome da empresa" />
+                  </label>
+                </>
+              )}
+              <label>
+                E-mail
+                <input name="email" type="email" placeholder="voce@empresa.com" required />
+              </label>
+              <label>
+                Senha
+                <input name="password" type="password" placeholder="••••••••" minLength={6} required />
+              </label>
+              {error && <b className="error">{error}</b>}
+              <button disabled={loading}>
+                {loading ? "Aguarde..." : authMode === "login" ? "Entrar no workspace →" : "Criar conta e entrar →"}
+              </button>
+            </form>
+            <small>
+              {authMode === "login"
+                ? "Demonstração: admin@operator.demo · senha operator123"
+                : "Cada conta cria uma empresa separada, com dados isolados."}
+            </small>
+          </section>
         </section>
       </main>
     );
